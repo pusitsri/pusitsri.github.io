@@ -171,21 +171,36 @@
 
         // --- GLOBAL VARIABLES & INITIALIZATION ---
         const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
-        const firebaseConfig = JSON.parse(typeof __firebase_config !== 'undefined' ? __firebase_config : '{}');
-        const initialAuthToken = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null;
-
-        let db;
-        let auth;
-        let userId = null;
         const ADMIN_PASSCODE = '7793';
         const MAX_LOGIN_ATTEMPTS = 3;
-        // อัปเดตเวลาเป็น 120 วินาที (2 นาที)
-        const ADMIN_DURATION_SECONDS = 120; 
+        const ADMIN_DURATION_SECONDS = 120; // 2 นาที
         let gameState = { status: 'IDLE', startTime: null, durationSeconds: ADMIN_DURATION_SECONDS };
         let timerInterval = null;
         const GROUP_LABELS = ['A', 'B', 'C', 'D', 'E', 'F'];
         let hasSubmittedInitialVote = false; // Flag สำหรับตรวจสอบว่าผู้เล่นเคยส่งชื่อแล้วหรือไม่
 
+        // *** สำคัญ: หากรันนอกสภาพแวดล้อม Canvas (เช่น บน GitHub Pages) 
+        // ** โค้ดจะใช้ค่า Config ที่คุณให้มานี้
+        const customFirebaseConfig = {
+            apiKey: "AIzaSyDOrTeFqzQJNtz0bR327Z7HiM3F4pjxKyA",
+            authDomain: "alice-game-b2aa5.firebaseapp.com",
+            projectId: "alice-game-b2aa5",
+            storageBucket: "alice-game-b2aa5.firebasestorage.app",
+            messagingSenderId: "70768832876",
+            appId: "1:70768832876:web:e3d908f7b1a9f1d1458349"
+        };
+        
+        const firebaseConfig = typeof __firebase_config !== 'undefined' 
+            ? JSON.parse(__firebase_config) 
+            : customFirebaseConfig; 
+        
+        const initialAuthToken = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null;
+
+
+        let db;
+        let auth;
+        let userId = null;
+        
         // Admin Security State
         let isUserBlocked = false;
         let loginAttempts = 0;
@@ -223,6 +238,7 @@
 
         // --- FIREBASE INITIALIZATION & AUTH ---
         try {
+            // ใช้ firebaseConfig ที่ถูกกำหนดไว้ข้างต้น
             const app = initializeApp(firebaseConfig);
             auth = getAuth(app);
             db = getFirestore(app);
@@ -248,13 +264,15 @@
                     // Sign in if not authenticated
                     try {
                         if (initialAuthToken) {
+                            // ใช้ initialAuthToken ที่ถูกส่งมาจาก Canvas (จะใช้ได้เฉพาะใน Canvas)
                             await signInWithCustomToken(auth, initialAuthToken);
                         } else {
+                            // สำหรับรันบน GitHub Pages ให้ Sign in แบบ Anonymous
                             await signInAnonymously(auth);
                         }
                     } catch (error) {
                         console.error("Authentication failed:", error);
-                        authStatusEl.textContent = "เกิดข้อผิดพลาดในการเชื่อมต่อ: " + error.message;
+                        authStatusEl.textContent = "เกิดข้อผิดพลาดในการเชื่อมต่อ (Auth): " + error.message;
                         authStatusEl.classList.remove('hidden');
                     }
                 }
@@ -326,6 +344,7 @@
                     handleGameStateChange();
                 } else {
                     if (gameState.status !== 'RUNNING') {
+                        // ตั้งค่าเริ่มต้นถ้าไม่มีเอกสาร
                         setDoc(doc(db, GAME_STATE_DOC_PATH, 'current'), gameState);
                         handleGameStateChange();
                     }
@@ -390,7 +409,9 @@
             const now = Date.now();
 
             if (gameState.status === 'RUNNING' && gameState.startTime && gameState.durationSeconds) {
-                const startTimeMs = gameState.startTime.toMillis();
+                // ตรวจสอบชนิดของ startTime และแปลงให้เป็นมิลลิวินาที
+                const startTimeMs = gameState.startTime.toMillis ? gameState.startTime.toMillis() : new Date(gameState.startTime).getTime();
+                
                 const endTimeMs = startTimeMs + (gameState.durationSeconds * 1000);
                 let remainingTimeSeconds = Math.max(0, Math.floor((endTimeMs - now) / 1000));
 
@@ -413,6 +434,7 @@
                         
                         if (remainingTimeSeconds <= 0) {
                             clearInterval(timerInterval);
+                            // ส่งสถานะจบเกมไปยัง Firestore
                             setDoc(doc(db, GAME_STATE_DOC_PATH, 'current'), {
                                 status: 'IDLE',
                                 startTime: null,
@@ -456,14 +478,13 @@
             const nameIsFilled = nameInput.value.trim() !== '';
             const voteIsSelected = document.querySelector('input[name="vote"]:checked');
 
-            // ล็อกช่องชื่อ ถ้าเคยส่งข้อมูลแล้ว หรือถ้าเกมไม่ได้ Active (เพื่อป้องกันการกรอกชื่อล่วงหน้า)
-            nameInput.disabled = hasSubmittedInitialVote || !isGameActive;
-
+            // ล็อกช่องชื่อ ถ้าเคยส่งข้อมูลแล้ว
+            nameInput.disabled = hasSubmittedInitialVote;
             // ล็อกปุ่มเลือกกลุ่ม ถ้าเกมไม่ได้ Active
             groupOptions.forEach(el => el.disabled = !isGameActive);
             
             // กฎการเปิดปุ่ม Submit: 1. เกม Active, 2. ชื่อพร้อม (เคยส่งแล้ว หรือ กรอกใหม่), 3. เลือกกลุ่มแล้ว
-            const nameReady = hasSubmittedInitialVote || (isGameActive && nameIsFilled);
+            const nameReady = hasSubmittedInitialVote || nameIsFilled;
             const enableSubmit = isGameActive && nameReady && voteIsSelected;
             
             submitButton.disabled = !enableSubmit;
