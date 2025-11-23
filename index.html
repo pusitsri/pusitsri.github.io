@@ -50,7 +50,7 @@
                     <span id="timer-value" class="text-6xl font-extrabold text-orange-600">00:00</span>
                 </div>
 
-                <!-- Admin Control Container (Starts Hidden) -->
+                <!-- Admin Control Container (Starts Hidden/Visible based on activeAdminId) -->
                 <div id="admin-container" class="bg-white p-6 rounded-xl shadow-2xl border-4 border-gray-300">
                     <h2 class="text-2xl font-bold mb-4 text-orange-600 border-b pb-3">
                         ควบคุมเกม (Admin)
@@ -178,9 +178,9 @@
         let timerInterval = null;
         const GROUP_LABELS = ['A', 'B', 'C', 'D', 'E', 'F'];
         let hasSubmittedInitialVote = false; // Flag สำหรับตรวจสอบว่าผู้เล่นเคยส่งชื่อแล้วหรือไม่
+        let isAdmin = false; // Flag สำหรับตรวจสอบสถานะ Admin ใน Local Session
 
-        // *** สำคัญ: หากรันนอกสภาพแวดล้อม Canvas (เช่น บน GitHub Pages) 
-        // ** โค้ดจะใช้ค่า Config ที่คุณให้มานี้
+        // *** FIREBASE CONFIGURATION (ปรับปรุงจากค่าที่คุณให้มา) ***
         const customFirebaseConfig = {
             apiKey: "AIzaSyDOrTeFqzQJNtz0bR327Z7HiM3F4pjxKyA",
             authDomain: "alice-game-b2aa5.firebaseapp.com",
@@ -398,6 +398,26 @@
             clearInterval(timerInterval); 
             timerDisplayEl.classList.add('hidden'); // ซ่อน Timer ก่อน
             
+            // --- NEW: Global Admin Container Visibility Control ---
+            // ถ้าผู้ใช้ปัจจุบันยังไม่ได้ล็อกอินเป็น Admin (isAdmin == false) 
+            // และมี Admin คนอื่นที่ล็อกอินแล้ว (activeAdminId ถูกตั้งค่า) ให้ซ่อนกล่องทั้งหมด
+            if (!isAdmin) { 
+                if (gameState.activeAdminId) {
+                    adminContainer.classList.add('hidden');
+                } else {
+                    // หากไม่มี Admin ล็อกอินอยู่ ให้แสดงกล่อง Login
+                    adminContainer.classList.remove('hidden');
+                    adminLoginForm.classList.remove('hidden'); 
+                    adminControlPanel.classList.add('hidden');
+                }
+            } else {
+                // Admin ที่ล็อกอินแล้วต้องเห็นแผงควบคุมเสมอ
+                adminContainer.classList.remove('hidden');
+                adminLoginForm.classList.add('hidden');
+                adminControlPanel.classList.remove('hidden');
+            }
+
+
             // ปุ่ม Admin จะถูก disabled ถ้ายังไม่ได้ Login
             if (adminControlPanel.classList.contains('hidden')) {
                 startGameButton.disabled = true; 
@@ -457,6 +477,18 @@
             timerDisplayEl.classList.add('hidden'); // Hide Timer
             statusTextEl.textContent = 'สถานะ: จบเกม / รอเริ่ม';
             statusTextEl.className = 'text-center p-3 rounded-lg font-bold text-lg bg-gray-100 text-gray-600';
+            
+            // **NEW: Clear activeAdminId in Firestore เมื่อเกมจบ**
+            if (isAdmin) { // Only the logged-in admin should attempt to clear the flag
+                 try {
+                    const gameStateDocRef = doc(db, GAME_STATE_DOC_PATH, 'current');
+                    // Set activeAdminId เป็น null เพื่อให้กล่อง Login ปรากฏสำหรับผู้ใช้ทุกคนอีกครั้ง
+                    setDoc(gameStateDocRef, { activeAdminId: null }, { merge: true }); 
+                } catch (error) {
+                    console.error("Error clearing activeAdminId: ", error);
+                }
+            }
+            
             // อัปเดตข้อความปุ่มเป็น 2 นาที
             startGameButton.textContent = 'กดเพื่อเริ่มเกม 2 นาที';
             // ปุ่ม Admin จะถูก disabled ถ้ายังไม่ได้ Login
@@ -590,11 +622,23 @@
             const passcode = document.getElementById('admin-passcode-input').value.trim();
 
             if (passcode === ADMIN_PASSCODE) {
+                // **NEW 1: Set local Admin flag**
+                isAdmin = true; 
+                
+                // 2. Local UI changes:
                 adminLoginForm.classList.add('hidden');
                 adminControlPanel.classList.remove('hidden');
-                startGameButton.disabled = false; // Enable start button for admin
+                startGameButton.disabled = false; 
                 adminLoginMessageEl.textContent = '✅ เข้าสู่ระบบ Admin สำเร็จ!';
                 adminLoginMessageEl.className = 'mt-3 text-sm text-green-600 font-medium text-center';
+                
+                // **NEW 3: Global Firestore Signal: Set activeAdminId**
+                try {
+                    const gameStateDocRef = doc(db, GAME_STATE_DOC_PATH, 'current');
+                    await setDoc(gameStateDocRef, { activeAdminId: userId }, { merge: true }); 
+                } catch (error) {
+                    console.error("Error setting activeAdminId: ", error);
+                }
                 
             } else {
                 loginAttempts++;
