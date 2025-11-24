@@ -16,33 +16,129 @@
         .container {
             max-width: 1200px;
         }
-        .vote-option:checked + label {
-            background-color: #f97316; /* Orange 500 */
-            border-color: #f97316;
-            color: white;
-            box-shadow: 0 4px 6px -1px rgba(249, 115, 22, 0.4), 0 2px 4px -2px rgba(249, 115, 22, 0.3);
-        }
-        .vote-option + label {
-            transition: all 0.2s ease;
-        }
         /* Custom Orange Scrollbar for better theme integration */
         ::-webkit-scrollbar { width: 8px; }
         ::-webkit-scrollbar-thumb { background: #f97316; border-radius: 10px; }
         ::-webkit-scrollbar-track { background: #374151; }
+        /* Utility for simulating page switch */
+        .page-hidden { display: none !important; }
     </style>
 </head>
 <body>
 
-    <div class="container mx-auto p-4 md:p-8">
+    <div class="container mx-auto p-4 md:p-8 relative"> <!-- Added relative for admin toggle positioning -->
         <header class="text-center mb-10">
-            <h1 class="text-4xl font-extrabold text-orange-500">Alice in AI Land: ทองทองทอง</h1>
-            <!-- อัปเดตเวลาเป็น 2 นาที -->
-            <p class="text-lg text-gray-400 mt-2">คุณมีเวลา 2 นาทีในการเปลี่ยนกลุ่ม</p>
+            <h1 class="text-4xl font-extrabold text-orange-500">Alice in AI Land: เลือกกลุ่ม</h1>
+            <!-- Subtitle is used for Landing Page text -->
+            <p id="header-subtitle" class="text-lg text-gray-400 mt-2">โปรดระบุตัวตนเพื่อเข้าสู่ระบบเกม</p>
+            
+            <!-- Total Voter Count Display for Game Page (Hidden by default, positioned in header) -->
+            <div id="game-voter-summary" class="text-lg text-gray-300 mt-2 hidden">
+                <span class="text-xl">จำนวนผู้เล่นทั้งหมด:</span> 
+                <span id="voter-count-header" class="text-2xl font-bold ml-2 text-orange-400">0</span> 
+                <span>คน</span>
+            </div>
         </header>
 
-        <main class="grid grid-cols-1 lg:grid-cols-3 gap-10">
-            <!-- Game Control (Admin) & Voting Form Section -->
-            <div id="game-control-form-section" class="lg:col-span-1 space-y-8">
+        <!-- ============================================== -->
+        <!-- STEP 1: LANDING/AUTH PAGE -->
+        <!-- ============================================== -->
+        <div class="relative max-w-4xl mx-auto">
+            <!-- Admin Toggle Link (New Element: Positioned top-left) -->
+            <button id="admin-toggle-link" class="absolute top-[-1.5rem] left-4 text-sm text-gray-400 hover:text-orange-500 transition duration-200">
+                🔑 เข้าสู่ระบบ Admin
+            </button>
+            <!-- Error message will now be shown via dialog, this is just for visual space -->
+            <p id="guest-access-error" class="absolute top-[-1.5rem] right-4 text-sm text-red-500 font-medium hidden"></p> 
+
+            <!-- Landing Page Grid -->
+            <div id="landing-page" class="grid grid-cols-1 md:grid-cols-3 gap-8 page-hidden">
+                
+                <!-- Admin Login (Initially Hidden, Toggle by Link) -->
+                <div id="landing-admin-card" class="bg-white p-6 rounded-xl shadow-2xl border-4 border-gray-300 hidden">
+                    <h2 class="text-2xl font-bold mb-4 text-orange-600 border-b pb-3">
+                        เข้าสู่ระบบ Admin
+                    </h2>
+                    <form id="admin-login-form">
+                        <label for="admin-passcode-input" class="block text-sm font-medium text-gray-700 mb-2">ใส่รหัส Admin 4 หลัก</label>
+                        <input type="password" id="admin-passcode-input" required maxlength="4" placeholder="****"
+                            class="w-full p-3 border border-gray-300 rounded-lg focus:ring-orange-500 focus:border-orange-500 transition duration-150 text-center text-xl font-mono text-gray-900">
+                        <button type="submit" id="landing-admin-btn"
+                            class="w-full mt-4 bg-gray-500 text-white p-3 rounded-lg font-semibold hover:bg-gray-600 transition duration-200 shadow-md">
+                            เข้าสู่ระบบ Admin
+                        </button>
+                    </form>
+                    <p id="admin-login-message" class="mt-3 text-sm text-red-600 font-medium text-center"></p>
+                    <p id="block-message-landing" class="text-center p-3 rounded-lg font-bold text-lg bg-red-100 text-red-700 hidden mt-4">
+                        🚫 บัญชีของคุณถูกบล็อกถาวร
+                    </p>
+                </div>
+
+                <!-- Player Registration / Resume Card -->
+                <div class="bg-white p-6 rounded-xl shadow-2xl border border-gray-300 col-span-1 md:col-span-1" id="player-card"> 
+                    <h2 class="text-2xl font-bold mb-4 text-gray-800 border-b pb-3">
+                        ลงทะเบียนผู้เล่น
+                    </h2>
+                    
+                    <!-- Content for NEW Player (Default) -->
+                    <div id="player-card-content"> 
+                        <form id="player-registration-form">
+                            <label for="player-name-input" class="block text-sm font-medium text-gray-700 mb-2">ชื่อผู้เล่น</label>
+                            <input type="text" id="player-name-input" required placeholder="ชื่อหรือชื่อเล่น"
+                                class="w-full p-3 border border-gray-300 rounded-lg focus:ring-orange-500 focus:border-orange-500 transition duration-150 text-gray-900">
+                            <button type="submit"
+                                class="w-full mt-4 bg-orange-500 text-white p-3 rounded-lg font-semibold hover:bg-orange-600 transition duration-200 shadow-md">
+                                เข้าเล่นเกม
+                            </button>
+                        </form>
+                    </div>
+
+                    <!-- Content for RETURNING Player (Hidden by default, shown via JS) -->
+                    <div id="player-resume-content" class="hidden">
+                        <p class="text-lg text-gray-700 mb-4">
+                            ยินดีต้อนรับกลับมา, <span id="resumed-player-name" class="font-bold text-orange-600"></span>!
+                        </p>
+                        <button id="resume-player-button" class="w-full mt-2 bg-orange-500 text-white p-3 rounded-lg font-semibold hover:bg-orange-600 transition duration-200 shadow-md">
+                            เล่นเกมต่อในชื่อนี้
+                        </button>
+                        <button id="resume-as-guest-button" class="w-full mt-3 bg-gray-200 text-gray-700 p-3 rounded-lg font-semibold hover:bg-gray-300 transition duration-200 shadow-md border border-gray-400">
+                            เข้าชมผลลัพธ์ (Guest Mode)
+                        </button>
+                        <button id="change-name-button" class="w-full mt-3 text-sm text-gray-500 hover:text-red-500 transition duration-200">
+                            เปลี่ยนชื่อ / เริ่มใหม่
+                        </button>
+                    </div>
+
+                    <p class="text-sm text-gray-500 mt-3 text-center">
+                        (คุณจะสามารถเปลี่ยนกลุ่มได้ แต่ไม่สามารถเปลี่ยนชื่อได้หลังจากส่งครั้งแรก)
+                    </p>
+                </div>
+
+                <!-- Guest Access -->
+                <div class="bg-white p-6 rounded-xl shadow-2xl border border-gray-300 flex flex-col justify-between col-span-1 md:col-span-1">
+                    <div>
+                        <h2 class="text-2xl font-bold mb-4 text-gray-800 border-b pb-3">
+                            เข้าชมผลลัพธ์
+                        </h2>
+                        <p class="text-gray-600 mb-4">
+                            เข้าสู่หน้าเกมโดยไม่ต้องลงทะเบียนชื่อและไม่สามารถร่วมเล่นเกมได้ (ดูได้อย่างเดียว)
+                        </p>
+                    </div>
+                    <button id="guest-access-button"
+                        class="w-full bg-gray-200 text-gray-700 p-3 rounded-lg font-semibold hover:bg-gray-300 transition duration-200 shadow-md border border-gray-400">
+                        เข้าชม (Guest)
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- ============================================== -->
+        <!-- STEP 2: GAME PAGE -->
+        <!-- ============================================== -->
+        <div id="game-page" class="grid grid-cols-1 lg:grid-cols-3 gap-10 page-hidden">
+            
+            <!-- Game Control, Timer & Player/Guest Area -->
+            <div class="lg:col-span-1 space-y-8">
                 
                 <!-- GLOBAL TIMER DISPLAY (Visible to all when game is RUNNING) -->
                 <div id="timer-display" class="bg-white p-4 rounded-xl shadow-2xl border border-gray-300 text-center hidden">
@@ -50,104 +146,92 @@
                     <span id="timer-value" class="text-6xl font-extrabold text-orange-600">00:00</span>
                 </div>
 
-                <!-- Admin Control Container (Starts Hidden/Visible based on activeAdminId) -->
-                <div id="admin-container" class="bg-white p-6 rounded-xl shadow-2xl border-4 border-gray-300">
+                <!-- Admin Control Panel (Visible only to Admin) -->
+                <div id="admin-control-panel" class="bg-white p-6 rounded-xl shadow-2xl border-4 border-orange-500 hidden">
                     <h2 class="text-2xl font-bold mb-4 text-orange-600 border-b pb-3">
-                        ควบคุมเกม (Admin)
+                        สถานะและการควบคุมเกม
                     </h2>
-
-                    <!-- Admin Login Form (Visible Initially) -->
-                    <form id="admin-login-form">
-                        <label for="admin-passcode-input" class="block text-sm font-medium text-gray-700 mb-2">ใส่รหัส Admin 4 หลัก</label>
-                        <input type="password" id="admin-passcode-input" required maxlength="4" placeholder="****"
-                            class="w-full p-3 border border-gray-300 rounded-lg focus:ring-orange-500 focus:border-orange-500 transition duration-150 text-center text-xl font-mono text-gray-900">
-                        <button type="submit"
-                            class="w-full mt-4 bg-gray-500 text-white p-3 rounded-lg font-semibold hover:bg-gray-600 transition duration-200 shadow-md">
-                            เข้าสู่ระบบ Admin
-                        </button>
-                    </form>
-                    <p id="admin-login-message" class="mt-3 text-sm text-red-600 font-medium text-center"></p>
-
-                    <!-- Game Control Panel (Hidden until logged in) -->
-                    <div id="admin-control-panel" class="hidden">
-                        <div id="game-status-display" class="mb-4 text-center p-3 rounded-lg font-bold text-lg">
-                            <p id="status-text" class="text-gray-800">กำลังเชื่อมต่อ...</p>
-                        </div>
-                        <!-- Timer has been moved out of this panel -->
-
-                        <button id="start-game-button" disabled
-                            class="w-full bg-orange-500 text-white p-3 rounded-lg font-semibold hover:bg-orange-600 transition duration-200 shadow-lg disabled:opacity-50 disabled:cursor-not-allowed">
-                            <!-- อัปเดตข้อความเป็น 2 นาที -->
-                            กดเพื่อเริ่มเกม 2 นาที
-                        </button>
-                        <p class="text-xs text-gray-500 mt-2 text-center">
-                            *เฉพาะ Admin เท่านั้นที่ควรเข้าถึงส่วนนี้
-                        </p>
+                    <div id="game-status-display" class="mb-4 text-center p-3 rounded-lg font-bold text-lg">
+                        <p id="status-text" class="text-gray-800">กำลังเชื่อมต่อ...</p>
                     </div>
+                    
+                    <!-- Timer Adjustments -->
+                    <div class="mb-4">
+                        <h3 class="text-sm font-medium text-gray-700 mb-2">ปรับเวลาคงเหลือ (ครั้งละ 30 วินาที)</h3>
+                        <div class="flex justify-between items-center space-x-2">
+                            <button id="time-minus-btn" disabled 
+                                class="w-1/2 bg-gray-600 text-white p-2 rounded-lg font-semibold hover:bg-gray-700 transition duration-200 disabled:opacity-50">
+                                - 30 วินาที
+                            </button>
+                            <button id="time-plus-btn" disabled 
+                                class="w-1/2 bg-gray-600 text-white p-2 rounded-lg font-semibold hover:bg-gray-700 transition duration-200 disabled:opacity-50">
+                                + 30 วินาที
+                            </button>
+                        </div>
+                    </div>
+
+
+                    <!-- Main Control Buttons -->
+                    <div class="grid grid-cols-2 gap-3 mb-4">
+                        <button id="main-control-button" disabled
+                            class="col-span-1 bg-orange-500 text-white p-3 rounded-lg font-semibold hover:bg-orange-600 transition duration-200 shadow-lg disabled:opacity-50 disabled:cursor-not-allowed">
+                            เริ่มต้น
+                        </button>
+                        <button id="terminate-button" disabled
+                            class="col-span-1 bg-red-600 text-white p-3 rounded-lg font-semibold hover:bg-red-700 transition duration-200 shadow-lg disabled:opacity-50 disabled:cursor-not-allowed">
+                            จบเกมทันที
+                        </button>
+                    </div>
+                    
+                    <p class="text-xs text-gray-500 mt-2 text-center">
+                        *Admin ไม่สามารถเข้าร่วมเล่นเกมได้
+                    </p>
+                    <button id="logout-admin-button"
+                        class="w-full mt-4 bg-gray-400 text-gray-800 p-2 rounded-lg font-semibold hover:bg-gray-500 transition duration-200 shadow-md">
+                        ออกจากระบบ Admin
+                    </button>
                 </div>
                 
-                <!-- Player Form -->
-                <div id="vote-form-section" class="bg-white p-6 rounded-xl shadow-2xl h-fit border border-gray-300">
-                    <h2 class="text-2xl font-bold mb-6 text-gray-800 border-b pb-3">1. เลือกกลุ่ม</h2>
+                <!-- Player Info and Message (NEW SECTION) -->
+                <div id="player-info-section" class="bg-white p-6 rounded-xl shadow-2xl h-fit border border-gray-300 hidden">
+                    <h2 class="text-2xl font-bold mb-4 text-gray-800 border-b pb-3">สถานะผู้เล่น</h2>
                     
-                    <div id="auth-status" class="text-sm text-red-500 mb-4 hidden">
-                        <!-- Status message will appear here -->
-                    </div>
-
-                    <p id="block-message" class="text-center p-3 rounded-lg font-bold text-lg bg-red-100 text-red-700 hidden">
-                        🚫 บัญชีของคุณถูกบล็อกเนื่องจากพยายามเข้าสู่ระบบ Admin ผิดพลาดหลายครั้ง
+                    <p id="player-name-display" class="text-lg font-semibold text-gray-700 mb-4">
+                        ผู้เล่น: <span id="current-player-name" class="text-orange-600"></span>
                     </p>
 
-                    <form id="voting-form">
-                        <div class="mb-5">
-                            <label for="voter-name" class="block text-sm font-medium text-gray-700 mb-2">ชื่อผู้เล่น</label>
-                            <input type="text" id="voter-name" required placeholder="ชื่อหรือชื่อเล่น"
-                                class="w-full p-3 border border-gray-300 rounded-lg focus:ring-orange-500 focus:border-orange-500 transition duration-150 text-gray-900">
-                        </div>
-                        
-                        <div class="mb-6">
-                            <!-- อัปเดตข้อความจาก (0-5) เป็น (A-F) -->
-                            <label class="block text-sm font-medium text-gray-700 mb-3">เลือกกลุ่ม (A - F)</label>
-                            <div class="grid grid-cols-3 sm:grid-cols-3 md:grid-cols-6 gap-3">
-                                <!-- Group buttons A-F (Internal value 0-5) -->
-                                <script>
-                                    const groupLabels = ['A', 'B', 'C', 'D', 'E', 'F'];
-                                    for (let i = 0; i <= 5; i++) {
-                                        document.write(`
-                                            <div>
-                                                <input type="radio" id="vote-${i}" name="vote" value="${i}" required class="hidden vote-option">
-                                                <label for="vote-${i}" 
-                                                    class="flex justify-center items-center h-16 w-full text-xl font-bold border-2 border-gray-300 rounded-lg cursor-pointer select-none text-gray-600 hover:bg-orange-50 hover:border-orange-400">
-                                                    <!-- ลบคำว่า "กลุ่ม " ออก ให้เหลือแค่ชื่อกลุ่ม -->
-                                                    ${groupLabels[i]}
-                                                </label>
-                                            </div>
-                                        `);
-                                    }
-                                </script>
-                            </div>
-                        </div>
-
-                        <button type="submit" id="submit-button" disabled
-                            class="w-full bg-orange-500 text-white p-3 rounded-lg font-semibold hover:bg-orange-600 transition duration-200 shadow-md disabled:opacity-50 disabled:cursor-not-allowed">
-                            ยืนยันการเลือกกลุ่ม
-                        </button>
-                    </form>
-
-                    <div id="vote-message" class="mt-4 text-center text-red-600 font-semibold hidden">
-                        <!-- Success/Error message will appear here -->
+                    <div id="vote-message-container">
+                        <p id="vote-message" class="mt-4 text-center text-red-600 font-semibold hidden">
+                            <!-- Success/Error message will appear here -->
+                        </p>
                     </div>
+                    
+                    <!-- LOGOUT BUTTON FOR PLAYER -->
+                    <button id="logout-player-button" 
+                        class="w-full mt-4 bg-gray-200 text-gray-700 p-2 rounded-lg font-semibold hover:bg-gray-300 transition duration-200 shadow-md border border-gray-400">
+                        ออกจากระบบ (กลับหน้าลงทะเบียน)
+                    </button>
+                </div>
+
+                <!-- Guest/Blocked Message Area (Visible to Guests or Blocked Users) -->
+                <div id="guest-view-section" class="bg-white p-6 rounded-xl shadow-2xl h-fit border border-gray-300 hidden">
+                    <h2 class="text-2xl font-bold mb-4 text-gray-800">โหมดผู้ชม (Guest View)</h2>
+                    <p class="text-gray-600 mb-4">คุณกำลังดูผลลัพธ์แบบเรียลไทม์ และไม่สามารถร่วมเล่นเกมได้</p>
+                    <p id="guest-block-message" class="text-center p-3 rounded-lg font-bold text-lg bg-red-100 text-red-700 hidden">
+                        🚫 บัญชีของคุณถูกบล็อกถาวร
+                    </p>
+                    <button id="logout-guest-button"
+                        class="w-full mt-4 bg-gray-200 text-gray-700 p-2 rounded-lg font-semibold hover:bg-gray-300 transition duration-200 shadow-md border border-gray-400">
+                        กลับไปยังหน้าลงทะเบียน
+                    </button>
                 </div>
             </div>
 
-            <!-- Results Section -->
+            <!-- Results Section (Visible to all roles) -->
             <div class="lg:col-span-2 bg-white p-6 rounded-xl shadow-2xl border border-gray-300">
-                <h2 class="text-2xl font-bold mb-6 text-gray-800 border-b pb-3">2. สรุปจำนวนสมาชิกกลุ่ม (เรียลไทม์)</h2>
+                <!-- MODIFIED TITLE -->
+                <h2 class="text-2xl font-bold mb-6 text-gray-800 border-b pb-3">จำนวนสมาชิกกลุ่ม (เรียลไทม์)</h2>
                 
-                <div id="total-voters" class="mb-6 p-4 bg-gray-100 rounded-lg text-gray-800 font-semibold shadow-inner">
-                    <span class="text-xl">จำนวนผู้เล่นทั้งหมด:</span> <span id="voter-count" class="text-2xl font-bold ml-2 text-orange-600">0</span> คน
-                </div>
-
                 <div id="results-container" class="space-y-6">
                     <p id="loading-message" class="text-center text-gray-500">
                         <svg class="animate-spin h-5 w-5 mr-3 inline text-orange-500" viewBox="0 0 24 24">
@@ -158,29 +242,49 @@
                     </p>
                 </div>
             </div>
-        </main>
+        </div>
+
     </div>
+    
+    <!-- Custom Alert Dialog (Hidden by Default) -->
+    <div id="custom-alert-modal" class="fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center p-4 z-50 hidden">
+        <div class="bg-white p-8 rounded-xl max-w-sm w-full shadow-2xl border-4 border-red-500">
+            <h3 class="text-2xl font-bold text-red-600 mb-4">🛑 คำเตือน</h3>
+            <p id="custom-alert-message" class="text-gray-700 mb-6"></p>
+            <button id="custom-alert-close-btn" class="w-full bg-red-500 text-white p-3 rounded-lg font-semibold hover:bg-red-600 transition duration-200 shadow-lg">
+                ตกลง
+            </button>
+        </div>
+    </div>
+
 
     <!-- Firebase SDKs -->
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
         import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
         import { 
-            getFirestore, doc, setDoc, onSnapshot, collection, query, serverTimestamp, getDoc, setLogLevel 
+            getFirestore, doc, setDoc, onSnapshot, collection, query, serverTimestamp, getDoc, setLogLevel, deleteDoc, getDocs, updateDoc
         } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
         // --- GLOBAL VARIABLES & INITIALIZATION ---
         const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
         const ADMIN_PASSCODE = '7793';
         const MAX_LOGIN_ATTEMPTS = 3;
-        const ADMIN_DURATION_SECONDS = 120; // 2 นาที
-        let gameState = { status: 'IDLE', startTime: null, durationSeconds: ADMIN_DURATION_SECONDS };
+        const DEFAULT_DURATION_SECONDS = 120; // 2 นาที
+        // Game state now uses three status: IDLE, RUNNING, PAUSED
+        let gameState = { status: 'IDLE', endTime: null, remainingTimeSeconds: DEFAULT_DURATION_SECONDS, newGameTimestamp: null };
         let timerInterval = null;
         const GROUP_LABELS = ['A', 'B', 'C', 'D', 'E', 'F'];
-        let hasSubmittedInitialVote = false; // Flag สำหรับตรวจสอบว่าผู้เล่นเคยส่งชื่อแล้วหรือไม่
-        let isAdmin = false; // Flag สำหรับตรวจสอบสถานะ Admin ใน Local Session
+        let hasSubmittedInitialVote = false; 
 
-        // *** FIREBASE CONFIGURATION (ปรับปรุงจากค่าที่คุณให้มา) ***
+        // *** ROLE STATES ***
+        let currentUserRole = 'Unknown'; // 'Admin', 'Player', 'Guest', 'Unknown'
+        let isAdmin = false; 
+        let isPlayer = false;
+        let isGuest = false;
+        let playerName = '';
+
+        // *** FIREBASE CONFIGURATION ***
         const customFirebaseConfig = {
             apiKey: "AIzaSyDOrTeFqzQJNtz0bR327Z7HiM3F4pjxKyA",
             authDomain: "alice-game-b2aa5.firebaseapp.com",
@@ -205,40 +309,153 @@
         let isUserBlocked = false;
         let loginAttempts = 0;
 
-        // Elements
-        const form = document.getElementById('voting-form');
-        const submitButton = document.getElementById('submit-button');
-        const nameInput = document.getElementById('voter-name');
-        const voteMessage = document.getElementById('vote-message');
+        // --- ELEMENTS ---
+        const headerSubtitle = document.getElementById('header-subtitle');
+        const landingPage = document.getElementById('landing-page');
+        const gamePage = document.getElementById('game-page');
+        
+        // Landing Page Elements
+        const adminToggleLink = document.getElementById('admin-toggle-link');
+        const landingAdminCard = document.getElementById('landing-admin-card');
+        const adminLoginForm = document.getElementById('admin-login-form');
+        const playerRegistrationForm = document.getElementById('player-registration-form');
+        const playerCardContentEl = document.getElementById('player-card-content');
+        const playerResumeContentEl = document.getElementById('player-resume-content');
+        const resumePlayerButton = document.getElementById('resume-player-button');
+        const resumeAsGuestButton = document.getElementById('resume-as-guest-button');
+        const changeNameButton = document.getElementById('change-name-button');
+        const resumedPlayerNameEl = document.getElementById('resumed-player-name');
+
+        const guestAccessButton = document.getElementById('guest-access-button');
+        const adminLoginMessageEl = document.getElementById('admin-login-message');
+        const adminPasscodeInput = document.getElementById('admin-passcode-input');
+        const playerNameInput = document.getElementById('player-name-input');
+        const blockMessageLandingEl = document.getElementById('block-message-landing');
+        const guestAccessErrorEl = document.getElementById('guest-access-error'); 
+        
+        // Custom Alert Dialog Elements
+        const customAlertModal = document.getElementById('custom-alert-modal');
+        const customAlertMessageEl = document.getElementById('custom-alert-message');
+        const customAlertCloseBtn = document.getElementById('custom-alert-close-btn');
+
+        // Game Page Elements
+        const adminControlPanel = document.getElementById('admin-control-panel');
+        const playerInfoSection = document.getElementById('player-info-section'); // MODIFIED
+        const guestViewSection = document.getElementById('guest-view-section');
+        const currentPlayerNameEl = document.getElementById('current-player-name');
+        const logoutAdminButton = document.getElementById('logout-admin-button');
+        const logoutGuestButton = document.getElementById('logout-guest-button');
+        const logoutPlayerButton = document.getElementById('logout-player-button');
+        const gameVoterSummaryEl = document.getElementById('game-voter-summary');
+        const voterCountHeaderEl = document.getElementById('voter-count-header');
+
+        // Admin Control Elements 
+        const mainControlButton = document.getElementById('main-control-button');
+        const terminateButton = document.getElementById('terminate-button');
+        const timePlusBtn = document.getElementById('time-plus-btn');
+        const timeMinusBtn = document.getElementById('time-minus-btn');
+
+        const voteMessage = document.getElementById('vote-message'); // Moved to player-info-section
         const resultsContainer = document.getElementById('results-container');
-        const voterCountEl = document.getElementById('voter-count');
         const loadingMessage = document.getElementById('loading-message');
         const authStatusEl = document.getElementById('auth-status');
-        const startGameButton = document.getElementById('start-game-button');
         const statusTextEl = document.getElementById('status-text');
-        const timerDisplayEl = document.getElementById('timer-display'); // Global timer
-        const timerValueEl = document.getElementById('timer-value'); // Global timer value
-        const groupOptions = document.querySelectorAll('input[name="vote"]');
+        const timerDisplayEl = document.getElementById('timer-display'); 
+        const timerValueEl = document.getElementById('timer-value'); 
         
-        // New Admin Elements
-        const adminContainer = document.getElementById('admin-container');
-        const adminLoginForm = document.getElementById('admin-login-form');
-        const adminControlPanel = document.getElementById('admin-control-panel');
-        const adminLoginMessageEl = document.getElementById('admin-login-message');
-        const blockMessageEl = document.getElementById('block-message');
-
         // Firestore path
         const GAME_STATE_DOC_PATH = `artifacts/${appId}/public/data/gameState`;
         const VOTES_COLLECTION_PATH = `artifacts/${appId}/public/data/votes`;
-        // Path สำหรับสถานะการบล็อกของผู้ใช้ (Private Data)
         const BLOCK_STATUS_DOC_PATH = (uid) => `artifacts/${appId}/users/${uid}/status/adminBlock`;
 
         // Set Firebase log level for debugging
         setLogLevel('Debug');
 
+        // --- UTILITY FUNCTIONS ---
+
+        function showCustomAlert(message) {
+            customAlertMessageEl.textContent = message;
+            customAlertModal.classList.remove('hidden');
+        }
+
+        function hideCustomAlert() {
+            customAlertModal.classList.add('hidden');
+        }
+        
+        function showPage(pageId) {
+            landingPage.classList.add('page-hidden');
+            gamePage.classList.add('page-hidden');
+            
+            if (pageId === 'landing') {
+                landingPage.classList.remove('page-hidden');
+                headerSubtitle.classList.remove('hidden');
+                gameVoterSummaryEl.classList.add('hidden'); // Hide game summary
+                headerSubtitle.textContent = 'โปรดระบุตัวตนเพื่อเข้าสู่ระบบเกม';
+                adminLoginMessageEl.classList.add('hidden'); 
+                guestAccessErrorEl.classList.add('hidden'); 
+                renderLandingPageUI(); 
+                
+            } else if (pageId === 'game') {
+                gamePage.classList.remove('page-hidden');
+                headerSubtitle.classList.add('hidden'); // Hide landing subtitle
+                gameVoterSummaryEl.classList.remove('hidden'); // Show game summary
+            }
+        }
+        
+        function renderLandingPageUI() {
+            const storedName = sessionStorage.getItem('playerName');
+            
+            // Set default grid layout
+            landingPage.classList.remove('md:grid-cols-3');
+            landingPage.classList.add('md:grid-cols-2', 'md:max-w-xl');
+            document.getElementById('player-card').classList.add('md:col-span-1');
+            landingAdminCard.classList.add('hidden');
+            
+            if (storedName && !playerNameInput.dataset.forceRegister) {
+                // Show resume options
+                playerCardContentEl.classList.add('hidden');
+                playerResumeContentEl.classList.remove('hidden');
+                resumedPlayerNameEl.textContent = storedName;
+            } else {
+                // Show fresh registration form
+                playerCardContentEl.classList.remove('hidden');
+                playerResumeContentEl.classList.add('hidden');
+                playerNameInput.dataset.forceRegister = ''; // Clear flag
+            }
+        }
+        
+        function updateRole(role, name = '') {
+            currentUserRole = role;
+            isAdmin = role === 'Admin';
+            isPlayer = role === 'Player';
+            isGuest = role === 'Guest';
+            playerName = name;
+            
+            // Save role to sessionStorage to maintain state across soft refreshes/navigation
+            sessionStorage.setItem('currentUserRole', role);
+            if (name) sessionStorage.setItem('playerName', name);
+            
+            renderGamePageUI();
+        }
+
+        function renderGamePageUI() {
+            // Hide all role-specific elements first
+            adminControlPanel.classList.add('hidden');
+            playerInfoSection.classList.add('hidden');
+            guestViewSection.classList.add('hidden');
+            
+            if (isAdmin) {
+                adminControlPanel.classList.remove('hidden');
+            } else if (isPlayer) {
+                playerInfoSection.classList.remove('hidden');
+                currentPlayerNameEl.textContent = playerName;
+            } else if (isGuest) {
+                guestViewSection.classList.remove('hidden');
+            }
+        }
+        
         // --- FIREBASE INITIALIZATION & AUTH ---
         try {
-            // ใช้ firebaseConfig ที่ถูกกำหนดไว้ข้างต้น
             const app = initializeApp(firebaseConfig);
             auth = getAuth(app);
             db = getFirestore(app);
@@ -246,28 +463,41 @@
             onAuthStateChanged(auth, async (user) => {
                 if (user) {
                     userId = user.uid;
-                    console.log("Firebase Auth Ready. User ID:", userId);
                     
-                    // 1. ตรวจสอบสถานะการบล็อกถาวรของผู้ใช้ทันที
                     await checkBlockStatus(userId);
 
-                    // 2. ถ้าไม่ถูกบล็อก ให้เริ่ม Listener
-                    if (!isUserBlocked) {
-                        startGameButton.disabled = false;
+                    if (isUserBlocked) {
+                        showPage('landing');
+                        blockMessageLandingEl.classList.remove('hidden');
+                        adminPasscodeInput.disabled = true;
+                        document.getElementById('landing-admin-btn').disabled = true;
+                        playerRegistrationForm.querySelector('input').disabled = true;
+                        playerRegistrationForm.querySelector('button').disabled = true;
+                        guestAccessButton.disabled = false;
+                        return;
+                    }
+
+                    const savedRole = sessionStorage.getItem('currentUserRole');
+                    const savedName = sessionStorage.getItem('playerName') || '';
+
+                    if (savedRole && savedRole !== 'Unknown') {
+                        updateRole(savedRole, savedName);
                         startRealtimeListeners();
+                        if (savedRole === 'Guest' && gameState.status === 'IDLE') {
+                            updateRole('Unknown'); 
+                            showPage('landing');
+                        } else {
+                            showPage('game');
+                        }
                     } else {
-                         // ถ้าถูกบล็อก, enableVotingForm จะถูกเรียกผ่าน handleAdminBlockStatus
-                         console.log("User is permanently blocked from playing.");
+                        showPage('landing');
                     }
 
                 } else {
-                    // Sign in if not authenticated
                     try {
                         if (initialAuthToken) {
-                            // ใช้ initialAuthToken ที่ถูกส่งมาจาก Canvas (จะใช้ได้เฉพาะใน Canvas)
                             await signInWithCustomToken(auth, initialAuthToken);
                         } else {
-                            // สำหรับรันบน GitHub Pages ให้ Sign in แบบ Anonymous
                             await signInAnonymously(auth);
                         }
                     } catch (error) {
@@ -291,11 +521,10 @@
                 const blockDocRef = doc(db, BLOCK_STATUS_DOC_PATH(uid));
                 const docSnap = await getDoc(blockDocRef);
                 
-                // หากมีเอกสารและ isBlocked เป็น true
                 if (docSnap.exists() && docSnap.data().isBlocked === true) {
-                    handleAdminBlockStatus(true);
+                    isUserBlocked = true;
                 } else {
-                     handleAdminBlockStatus(false);
+                    isUserBlocked = false;
                 }
             } catch (error) {
                 console.error("Error fetching block status: ", error);
@@ -307,53 +536,36 @@
             try {
                 const blockDocRef = doc(db, BLOCK_STATUS_DOC_PATH(uid));
                 await setDoc(blockDocRef, { isBlocked: true, timestamp: serverTimestamp() });
-                handleAdminBlockStatus(true);
+                isUserBlocked = true;
             } catch (error) {
                 console.error("Error blocking user: ", error);
             }
         }
 
-        function handleAdminBlockStatus(isBlocked) {
-            isUserBlocked = isBlocked;
-            if (isBlocked) {
-                blockMessageEl.classList.remove('hidden');
-                nameInput.disabled = true;
-                groupOptions.forEach(el => el.disabled = true);
-                submitButton.disabled = true;
-                submitButton.textContent = 'บัญชีนี้ถูกบล็อกถาวร';
-                voteMessage.classList.add('hidden'); // ซ่อนข้อความอื่น
-            } else {
-                blockMessageEl.classList.add('hidden');
-                // เรียก enableVotingForm เพื่อตั้งค่าสถานะฟอร์มตามปกติ
-                if (gameState.status) {
-                    enableVotingForm(gameState.status === 'RUNNING');
-                }
-            }
-        }
-
-
         // --- GAME STATE AND TIMER CONTROL ---
         function startRealtimeListeners() {
             if (!db || !userId) return;
 
-            // 1. Listen to Game State
             onSnapshot(doc(db, GAME_STATE_DOC_PATH, 'current'), (docSnapshot) => {
                 if (docSnapshot.exists()) {
                     gameState = docSnapshot.data();
-                    console.log("Game State Updated:", gameState);
                     handleGameStateChange();
                 } else {
-                    if (gameState.status !== 'RUNNING') {
-                        // ตั้งค่าเริ่มต้นถ้าไม่มีเอกสาร
-                        setDoc(doc(db, GAME_STATE_DOC_PATH, 'current'), gameState);
-                        handleGameStateChange();
+                    // Initialize game state if it doesn't exist
+                    if (gameState.status === 'IDLE') {
+                        setDoc(doc(db, GAME_STATE_DOC_PATH, 'current'), {
+                            status: 'IDLE', 
+                            endTime: null, 
+                            remainingTimeSeconds: DEFAULT_DURATION_SECONDS,
+                            newGameTimestamp: serverTimestamp()
+                        }, { merge: true });
                     }
+                    handleGameStateChange();
                 }
             }, (error) => {
                 console.error("Error fetching game state: ", error);
             });
 
-            // 2. Listen to Votes
             const votesCollectionRef = collection(db, VOTES_COLLECTION_PATH);
             const q = query(votesCollectionRef);
 
@@ -362,6 +574,7 @@
                 const allVotes = [];
                 const results = { 0: [], 1: [], 2: [], 3: [], 4: [], 5: [] };
                 let userDocFound = false; 
+                let userCurrentVote = -1;
 
                 snapshot.forEach(docSnapshot => {
                     const data = docSnapshot.data();
@@ -371,19 +584,15 @@
                         results[data.vote].push(data.name);
                     }
 
-                    if (docSnapshot.id === userId) {
+                    if (docSnapshot.id === userId && isPlayer) {
                         userDocFound = true;
-                        nameInput.value = data.name;
-                        const radio = document.querySelector(`input[name="vote"][value="${data.vote}"]`);
-                        if (radio) radio.checked = true;
+                        userCurrentVote = data.vote;
                     }
                 });
 
-                hasSubmittedInitialVote = userDocFound;
+                hasSubmittedInitialVote = userDocFound; 
                 
-                renderResults(allVotes.length, results);
-                // เรียกเพื่ออัปเดตสถานะฟอร์ม
-                enableVotingForm(gameState.status === 'RUNNING');
+                renderResults(allVotes.length, results, userCurrentVote); // Pass current vote
                 
             }, (error) => {
                 console.error("Error fetching real-time votes: ", error);
@@ -391,208 +600,358 @@
             });
         }
 
+        function updateAdminControls(status) {
+            if (!isAdmin) return;
+
+            terminateButton.disabled = (status === 'IDLE');
+            timePlusBtn.disabled = (status === 'IDLE');
+            timeMinusBtn.disabled = (status === 'IDLE');
+
+            if (status === 'IDLE') {
+                mainControlButton.textContent = 'เริ่มต้น (ล้างผลเก่า)';
+                mainControlButton.classList.remove('bg-yellow-500', 'bg-green-500');
+                mainControlButton.classList.add('bg-orange-500');
+            } else if (status === 'RUNNING') {
+                mainControlButton.textContent = 'หยุดชั่วคราว (Pause)';
+                mainControlButton.classList.remove('bg-orange-500', 'bg-green-500');
+                mainControlButton.classList.add('bg-yellow-500');
+            } else if (status === 'PAUSED') {
+                mainControlButton.textContent = 'เล่นต่อ (Resume)';
+                mainControlButton.classList.remove('bg-orange-500', 'bg-yellow-500');
+                mainControlButton.classList.add('bg-green-500');
+            }
+            mainControlButton.disabled = false;
+        }
+
+        function formatTime(seconds) {
+            const minutes = Math.floor(seconds / 60);
+            const secs = seconds % 60;
+            return `${minutes.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+        }
+        
         function handleGameStateChange() {
-            // หากผู้ใช้ถูกบล็อก ห้ามทำอะไรต่อ
-            if (isUserBlocked) return; 
-
             clearInterval(timerInterval); 
-            timerDisplayEl.classList.add('hidden'); // ซ่อน Timer ก่อน
+            timerDisplayEl.classList.add('hidden'); 
             
-            // --- NEW: Global Admin Container Visibility Control ---
-            // ถ้าผู้ใช้ปัจจุบันยังไม่ได้ล็อกอินเป็น Admin (isAdmin == false) 
-            // และมี Admin คนอื่นที่ล็อกอินแล้ว (activeAdminId ถูกตั้งค่า) ให้ซ่อนกล่องทั้งหมด
-            if (!isAdmin) { 
-                if (gameState.activeAdminId) {
-                    adminContainer.classList.add('hidden');
-                } else {
-                    // หากไม่มี Admin ล็อกอินอยู่ ให้แสดงกล่อง Login
-                    adminContainer.classList.remove('hidden');
-                    adminLoginForm.classList.remove('hidden'); 
-                    adminControlPanel.classList.add('hidden');
+            const isFreshGame = gameState.status === 'IDLE' && (gameState.newGameTimestamp || 0);
+            
+            // Redirect players/guests if a new game reset just occurred
+            if ((isPlayer || isGuest) && isFreshGame && sessionStorage.getItem('latestGameTimestamp') !== gameState.newGameTimestamp?.toMillis()) {
+                if (isPlayer) {
+                    sessionStorage.removeItem('currentUserRole');
+                } else { 
+                    sessionStorage.removeItem('currentUserRole');
+                    sessionStorage.removeItem('playerName');
                 }
-            } else {
-                // Admin ที่ล็อกอินแล้วต้องเห็นแผงควบคุมเสมอ
-                adminContainer.classList.remove('hidden');
-                adminLoginForm.classList.add('hidden');
-                adminControlPanel.classList.remove('hidden');
+                sessionStorage.removeItem('latestGameTimestamp');
+                updateRole('Unknown');
+                showPage('landing');
+                return;
+            }
+            
+            if (isFreshGame) {
+                sessionStorage.setItem('latestGameTimestamp', gameState.newGameTimestamp.toMillis());
             }
 
+            // Update Admin Controls based on new status
+            updateAdminControls(gameState.status);
 
-            // ปุ่ม Admin จะถูก disabled ถ้ายังไม่ได้ Login
-            if (adminControlPanel.classList.contains('hidden')) {
-                startGameButton.disabled = true; 
-            } else {
-                startGameButton.disabled = false;
-            }
+            // Update UI status text
+            statusTextEl.textContent = 
+                gameState.status === 'RUNNING' ? 'สถานะ: กำลังเล่น!' :
+                gameState.status === 'PAUSED' ? 'สถานะ: หยุดชั่วคราว' :
+                'สถานะ: จบเกม / รอเริ่ม';
+            statusTextEl.className = `text-center p-3 rounded-lg font-bold text-lg ${
+                gameState.status === 'RUNNING' ? 'bg-red-100 text-red-600' :
+                gameState.status === 'PAUSED' ? 'bg-yellow-100 text-yellow-600' :
+                'bg-gray-100 text-gray-600'
+            }`;
 
-
-            const now = Date.now();
-
-            if (gameState.status === 'RUNNING' && gameState.startTime && gameState.durationSeconds) {
-                // ตรวจสอบชนิดของ startTime และแปลงให้เป็นมิลลิวินาที
-                const startTimeMs = gameState.startTime.toMillis ? gameState.startTime.toMillis() : new Date(gameState.startTime).getTime();
-                
-                const endTimeMs = startTimeMs + (gameState.durationSeconds * 1000);
-                let remainingTimeSeconds = Math.max(0, Math.floor((endTimeMs - now) / 1000));
+            // Handle Timer Logic
+            if (gameState.status === 'RUNNING' && gameState.endTime) {
+                const endTimeMs = gameState.endTime.toMillis ? gameState.endTime.toMillis() : new Date(gameState.endTime).getTime();
+                let remainingTimeSeconds = Math.max(0, Math.floor((endTimeMs - Date.now()) / 1000));
 
                 if (remainingTimeSeconds > 0) {
-                    // Game is RUNNING: Show Timer
                     timerDisplayEl.classList.remove('hidden');
-                    startGameButton.textContent = 'เกมกำลังดำเนินอยู่...';
-                    statusTextEl.textContent = 'สถานะ: กำลังเล่น!';
-                    statusTextEl.className = 'text-center p-3 rounded-lg font-bold text-lg bg-red-100 text-red-600';
-                    enableVotingForm(true);
-
+                    
                     timerInterval = setInterval(() => {
-                        remainingTimeSeconds--;
-                        if (remainingTimeSeconds < 0) remainingTimeSeconds = 0;
-                        
-                        const minutes = Math.floor(remainingTimeSeconds / 60);
-                        const seconds = remainingTimeSeconds % 60;
-                        // แสดงเวลาในรูปแบบ MM:SS
-                        timerValueEl.textContent = `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+                        remainingTimeSeconds = Math.max(0, Math.floor((endTimeMs - Date.now()) / 1000));
+                        timerValueEl.textContent = formatTime(remainingTimeSeconds);
                         
                         if (remainingTimeSeconds <= 0) {
                             clearInterval(timerInterval);
-                            // ส่งสถานะจบเกมไปยัง Firestore
-                            setDoc(doc(db, GAME_STATE_DOC_PATH, 'current'), {
-                                status: 'IDLE',
-                                startTime: null,
-                                durationSeconds: ADMIN_DURATION_SECONDS
-                            }, { merge: true });
+                            terminateGame(); // Force game to IDLE
                         }
                     }, 1000);
                 } else {
-                    handleGameOver();
+                    terminateGame(); // Time ran out
                 }
-
-            } else {
-                handleGameOver();
+            } else if (gameState.status === 'PAUSED' && gameState.remainingTimeSeconds !== undefined) {
+                // Show the remaining time when paused
+                timerDisplayEl.classList.remove('hidden');
+                timerValueEl.textContent = formatTime(gameState.remainingTimeSeconds);
+            } else if (gameState.status === 'IDLE') {
+                // Show default time or initial time when IDLE
+                timerDisplayEl.classList.remove('hidden');
+                timerValueEl.textContent = formatTime(gameState.remainingTimeSeconds || DEFAULT_DURATION_SECONDS);
+                timerDisplayEl.classList.add('hidden'); // Re-hide timer display when IDLE
             }
         }
 
-        function handleGameOver() {
+        // --- ADMIN ACTIONS ---
+        // (Admin actions functions remain unchanged)
+        // ... (startGame, togglePause, terminateGame, adjustTime, clearPreviousGameData) ...
+        
+        mainControlButton.addEventListener('click', async () => {
+            if (!db || !userId || !isAdmin) return;
+
+            if (gameState.status === 'IDLE') {
+                await startGame();
+            } else if (gameState.status === 'RUNNING') {
+                await togglePause(true);
+            } else if (gameState.status === 'PAUSED') {
+                await togglePause(false);
+            }
+        });
+        
+        async function startGame() {
+            if (!db || !userId || !isAdmin) return;
+            mainControlButton.disabled = true;
+            mainControlButton.textContent = 'กำลังล้างข้อมูล...';
+            
+            try {
+                await clearPreviousGameData();
+                
+                mainControlButton.textContent = 'กำลังเริ่มเกม...';
+                const now = Date.now();
+                const endTime = new Date(now + (DEFAULT_DURATION_SECONDS * 1000));
+
+                await setDoc(doc(db, GAME_STATE_DOC_PATH, 'current'), {
+                    status: 'RUNNING',
+                    endTime: endTime,
+                    remainingTimeSeconds: DEFAULT_DURATION_SECONDS, // Initial time for the round
+                    newGameTimestamp: serverTimestamp(),
+                    adminId: userId 
+                });
+
+            } catch (error) {
+                console.error("Error starting game: ", error);
+                showCustomAlert("ไม่สามารถเริ่มเกมได้: " + error.message);
+            }
+        }
+        
+        async function togglePause(pauseState) {
+            if (!db || !userId || !isAdmin) return;
+            
+            if (pauseState) { 
+                const remaining = Math.max(0, Math.floor((gameState.endTime.toMillis() - Date.now()) / 1000));
+
+                await updateDoc(doc(db, GAME_STATE_DOC_PATH, 'current'), {
+                    status: 'PAUSED',
+                    remainingTimeSeconds: remaining,
+                    endTime: null
+                });
+
+            } else { 
+                const now = Date.now();
+                const newEndTime = new Date(now + (gameState.remainingTimeSeconds * 1000));
+
+                await updateDoc(doc(db, GAME_STATE_DOC_PATH, 'current'), {
+                    status: 'RUNNING',
+                    endTime: newEndTime,
+                });
+            }
+        }
+
+        terminateButton.addEventListener('click', async () => {
+            if (!db || !userId || !isAdmin) return;
+            await terminateGame();
+        });
+
+        async function terminateGame() {
+            if (!db || !userId || !isAdmin) return;
+            
             clearInterval(timerInterval);
-            timerValueEl.textContent = '00:00';
-            timerDisplayEl.classList.add('hidden'); // Hide Timer
-            statusTextEl.textContent = 'สถานะ: จบเกม / รอเริ่ม';
-            statusTextEl.className = 'text-center p-3 rounded-lg font-bold text-lg bg-gray-100 text-gray-600';
+
+            await setDoc(doc(db, GAME_STATE_DOC_PATH, 'current'), {
+                status: 'IDLE',
+                endTime: null,
+                remainingTimeSeconds: DEFAULT_DURATION_SECONDS,
+                activeAdminId: null 
+            }, { merge: true });
+        }
+        
+        const TIME_ADJUSTMENT = 30; // seconds
+        timePlusBtn.addEventListener('click', () => adjustTime(TIME_ADJUSTMENT));
+        timeMinusBtn.addEventListener('click', () => adjustTime(-TIME_ADJUSTMENT));
+
+        async function adjustTime(seconds) {
+            if (!db || !userId || !isAdmin || gameState.status === 'IDLE') return;
+
+            const gameStateDocRef = doc(db, GAME_STATE_DOC_PATH, 'current');
             
-            // **NEW: Clear activeAdminId in Firestore เมื่อเกมจบ**
-            if (isAdmin) { // Only the logged-in admin should attempt to clear the flag
-                 try {
-                    const gameStateDocRef = doc(db, GAME_STATE_DOC_PATH, 'current');
-                    // Set activeAdminId เป็น null เพื่อให้กล่อง Login ปรากฏสำหรับผู้ใช้ทุกคนอีกครั้ง
-                    setDoc(gameStateDocRef, { activeAdminId: null }, { merge: true }); 
-                } catch (error) {
-                    console.error("Error clearing activeAdminId: ", error);
+            if (gameState.status === 'RUNNING') {
+                const currentEndTimeMs = gameState.endTime.toMillis();
+                const newEndTimeMs = currentEndTimeMs + (seconds * 1000);
+
+                if (newEndTimeMs <= Date.now() && seconds < 0) {
+                     await terminateGame();
+                     return;
                 }
+                
+                await updateDoc(gameStateDocRef, {
+                    endTime: new Date(newEndTimeMs)
+                });
+
+            } else if (gameState.status === 'PAUSED') {
+                const newRemaining = Math.max(0, gameState.remainingTimeSeconds + seconds);
+
+                if (newRemaining <= 0) {
+                     await terminateGame();
+                     return;
+                }
+
+                await updateDoc(gameStateDocRef, {
+                    remainingTimeSeconds: newRemaining
+                });
             }
+        }
+        
+        async function clearPreviousGameData() {
+            const votesRef = collection(db, VOTES_COLLECTION_PATH);
+            const snapshot = await getDocs(votesRef);
             
-            // อัปเดตข้อความปุ่มเป็น 2 นาที
-            startGameButton.textContent = 'กดเพื่อเริ่มเกม 2 นาที';
-            // ปุ่ม Admin จะถูก disabled ถ้ายังไม่ได้ Login
-            if (adminControlPanel.classList.contains('hidden')) {
-                startGameButton.disabled = true; 
-            } else {
-                startGameButton.disabled = false;
-            }
-            enableVotingForm(false);
+            const deletePromises = [];
+            snapshot.forEach(doc => {
+                deletePromises.push(deleteDoc(doc.ref));
+            });
+            
+            await Promise.all(deletePromises);
+            
+            const gameStateDocRef = doc(db, GAME_STATE_DOC_PATH, 'current');
+            await updateDoc(gameStateDocRef, { newGameTimestamp: serverTimestamp() }); 
         }
 
-        function enableVotingForm(isGameActive) {
-            // กฎ: ถ้าถูกบล็อก ให้หยุดทุกอย่างและแสดงข้อความบล็อก
-            if (isUserBlocked) {
-                handleAdminBlockStatus(true); 
+        // --- NEW: Group Selection and Submission ---
+        // Global scope function accessible from inline onclick
+        window.selectGroup = async function(voteValue, groupLabel) {
+            if (!isPlayer || gameState.status !== 'RUNNING') {
+                showCustomAlert(gameState.status === 'IDLE' ? 'เกมยังไม่เริ่ม! กรุณารอแอดมินเริ่มเกม' : 'เกมหยุดชั่วคราว');
+                return;
+            }
+            
+            if (!userId) {
+                voteMessage.textContent = 'กำลังเตรียมระบบ... โปรดรอสักครู่';
+                voteMessage.classList.remove('hidden');
+                voteMessage.classList.add('text-red-600');
                 return;
             }
 
-            const nameIsFilled = nameInput.value.trim() !== '';
-            const voteIsSelected = document.querySelector('input[name="vote"]:checked');
+            // Disable all buttons in the results container temporarily
+            document.querySelectorAll('.vote-group-button').forEach(btn => btn.disabled = true);
+            voteMessage.textContent = 'กำลังยืนยัน...';
+            voteMessage.classList.remove('hidden', 'text-green-600', 'text-red-600');
 
-            // ล็อกช่องชื่อ ถ้าเคยส่งข้อมูลแล้ว
-            nameInput.disabled = hasSubmittedInitialVote;
-            // ล็อกปุ่มเลือกกลุ่ม ถ้าเกมไม่ได้ Active
-            groupOptions.forEach(el => el.disabled = !isGameActive);
-            
-            // กฎการเปิดปุ่ม Submit: 1. เกม Active, 2. ชื่อพร้อม (เคยส่งแล้ว หรือ กรอกใหม่), 3. เลือกกลุ่มแล้ว
-            const nameReady = hasSubmittedInitialVote || nameIsFilled;
-            const enableSubmit = isGameActive && nameReady && voteIsSelected;
-            
-            submitButton.disabled = !enableSubmit;
-            
-            if (isGameActive) {
-                submitButton.textContent = 'ยืนยันการเลือกกลุ่ม (เล่นได้)';
-                if (hasSubmittedInitialVote) {
-                    voteMessage.textContent = 'คุณสามารถเปลี่ยนกลุ่มได้ตลอดเวลาที่เกมยังดำเนินอยู่!';
-                    voteMessage.classList.remove('hidden', 'text-red-600');
-                    voteMessage.classList.add('text-green-600');
-                } else {
-                    voteMessage.classList.add('hidden');
-                }
-            } else {
-                submitButton.textContent = 'จบเกม / รอเริ่ม';
-                if (gameState.status === 'IDLE') {
-                    voteMessage.textContent = 'รอแอดมินเริ่มเกมเพื่อเลือกกลุ่ม';
-                    voteMessage.classList.remove('hidden', 'text-green-600');
-                    voteMessage.classList.add('text-red-600');
-                }
-            }
-        }
-
-        async function startGame() {
-            if (!db || !userId) return;
-
-            startGameButton.disabled = true;
-            startGameButton.textContent = 'กำลังเริ่มเกม...';
-            
             try {
-                const gameStateDocRef = doc(db, GAME_STATE_DOC_PATH, 'current');
-                await setDoc(gameStateDocRef, {
-                    status: 'RUNNING',
-                    startTime: serverTimestamp(),
-                    durationSeconds: ADMIN_DURATION_SECONDS,
-                    adminId: userId 
-                });
+                const voteDocRef = doc(db, VOTES_COLLECTION_PATH, userId);
+
+                await setDoc(voteDocRef, {
+                    name: playerName,
+                    vote: voteValue,
+                    timestamp: serverTimestamp(),
+                    userId: userId 
+                }, { merge: true }); 
+
+                voteMessage.textContent = `✅ ยืนยันกลุ่ม ${groupLabel} สำเร็จ! คุณยังสามารถเปลี่ยนกลุ่มได้ตลอดเวลาที่เกมยังดำเนินอยู่`;
+                voteMessage.classList.add('text-green-600');
+                
             } catch (error) {
-                console.error("Error starting game: ", error);
-                voteMessage.textContent = 'ไม่สามารถเริ่มเกมได้: ' + error.message;
-                voteMessage.classList.remove('hidden', 'text-green-600');
+                console.error("Error submitting vote: ", error);
+                voteMessage.textContent = 'เกิดข้อผิดพลาดในการบันทึก: ' + error.message;
                 voteMessage.classList.add('text-red-600');
-                startGameButton.disabled = false;
-                startGameButton.textContent = 'เริ่มเกมใหม่';
             }
+            
+            // Re-enabling is handled by onSnapshot -> renderResults call
         }
 
-        // --- UI RENDERING (No change, left for completeness) ---
-
-        function renderResults(totalCount, results) {
-            voterCountEl.textContent = totalCount;
+        // --- UI RENDERING (Modified) ---
+        function renderResults(totalCount, results, userCurrentVote) {
+            // 1. Update the total count in the header
+            voterCountHeaderEl.textContent = totalCount;
+            
             resultsContainer.innerHTML = ''; 
+            
+            // 3. Determine if voter names should be shown (only when IDLE/game ended)
+            const showNames = gameState.status === 'IDLE';
 
             const voteCounts = Object.keys(results).map(vote => ({
                 number: parseInt(vote),
                 count: results[vote].length,
-                names: results[vote]
+                names: results[vote],
+                label: GROUP_LABELS[parseInt(vote)] // Include label for sorting
             }));
 
-            voteCounts.sort((a, b) => a.number - b.number);
+            // *** NEW SORTING LOGIC: Count DESC, Label ASC ***
+            voteCounts.sort((a, b) => {
+                if (b.count !== a.count) {
+                    return b.count - a.count; // Sort by count descending
+                }
+                return a.label.localeCompare(b.label); // Sort by label ascending (A-F)
+            });
+            // *** END NEW SORTING LOGIC ***
 
-            voteCounts.forEach(({ number, count, names }) => {
+            voteCounts.forEach(({ number, count, names, label }) => {
                 const percentage = totalCount > 0 ? (count / totalCount) * 100 : 0;
-                const groupLabel = GROUP_LABELS[number];
 
-                const namesList = names.length > 0
+                // Logic for showing/hiding names
+                const namesList = names.length > 0 && showNames
                     ? `<ul class="list-disc list-inside mt-3 ml-4 space-y-1 text-gray-700 max-h-40 overflow-y-auto">
                            ${names.map(name => `<li class="text-sm">${name}</li>`).join('')}
                        </ul>`
-                    : '<p class="text-sm italic text-gray-500 mt-2">ยังไม่มีสมาชิกกลุ่ม</p>';
+                    : (showNames 
+                        ? '<p class="text-sm italic text-gray-500 mt-2">ยังไม่มีสมาชิกกลุ่ม</p>'
+                        : '<p class="text-sm italic text-gray-500 mt-2">รายชื่อจะแสดงหลังจบเกม</p>'
+                      );
+                
+                const voterListTitle = showNames 
+                    ? `รายชื่อสมาชิก (${names.length} คน):` 
+                    : 'รายชื่อสมาชิก: (ซ่อนระหว่างเล่น)';
+                
+                // Button visibility and disabled state (Dynamic in client side)
+                let buttonHtml = '';
+                if (isPlayer) {
+                    const isRunning = gameState.status === 'RUNNING';
+                    const isSelected = userCurrentVote === number;
+                    const buttonText = hasSubmittedInitialVote ? 
+                        (isSelected ? '✅ กลุ่มปัจจุบัน' : 'เปลี่ยนเป็นกลุ่มนี้') : 
+                        'เข้ากลุ่มนี้';
+                    
+                    const buttonClasses = isSelected && isRunning
+                        ? 'bg-green-600 hover:bg-green-700'
+                        : isRunning
+                            ? 'bg-orange-500 hover:bg-orange-600'
+                            : 'bg-gray-400';
+
+                    buttonHtml = `
+                        <div class="mt-4 pt-4 border-t border-gray-200 flex justify-end">
+                            <button 
+                                data-group-number="${number}"
+                                onclick="selectGroup(${number}, '${label}')"
+                                ${isRunning ? '' : 'disabled'}
+                                class="vote-group-button ${buttonClasses} text-white p-2 px-4 rounded-lg font-semibold transition duration-200 shadow-md disabled:opacity-50 disabled:cursor-not-allowed">
+                                ${buttonText}
+                            </button>
+                        </div>
+                    `;
+                }
+
 
                 const resultBlock = `
-                    <div class="bg-gray-50 p-4 rounded-lg shadow-md border-l-4 border-orange-500">
+                    <div class="bg-gray-50 p-4 rounded-xl shadow-md border-l-4 border-orange-500">
                         <div class="flex justify-between items-center mb-2">
                             <h3 class="text-xl font-bold text-gray-800">
-                                กลุ่ม <span class="text-orange-600">${groupLabel}</span>
+                                กลุ่ม <span class="text-orange-600">${label}</span>
                             </h3>
                             <span class="text-3xl font-extrabold text-orange-700">${count}</span>
                         </div>
@@ -603,36 +962,65 @@
                         </div>
                         <p class="text-sm text-gray-600 mb-2">คิดเป็น: ${percentage.toFixed(1)}%</p>
                         
-                        <!-- Voter List -->
+                        <!-- Voter List (Visibility controlled by JS/showNames) -->
                         <div class="mt-4 pt-3 border-t border-gray-200">
-                            <h4 class="font-semibold text-gray-700">รายชื่อสมาชิก (${names.length} คน):</h4>
+                            <h4 class="font-semibold text-gray-700">${voterListTitle}</h4>
                             ${namesList}
                         </div>
+                        
+                        ${buttonHtml}
                     </div>
                 `;
                 resultsContainer.innerHTML += resultBlock;
             });
+            
+            // After rendering, re-enable buttons that were disabled during submission
+            if (isPlayer && gameState.status === 'RUNNING') {
+                document.querySelectorAll('.vote-group-button').forEach(btn => btn.disabled = false);
+            }
+        }
+        
+        // --- LOGOUT HANDLER (Shared by Player and Guest) ---
+        function handlePlayerGuestLogout() {
+            const roleToClear = sessionStorage.getItem('currentUserRole');
+            sessionStorage.removeItem('currentUserRole');
+            
+            if (roleToClear === 'Guest') {
+                sessionStorage.removeItem('playerName');
+            }
+            
+            updateRole('Unknown');
+            showPage('landing');
         }
 
-        // --- EVENT LISTENERS (Updated with Admin Login) ---
+        // --- EVENT LISTENERS (Landing Page) ---
+        
+        customAlertCloseBtn.addEventListener('click', hideCustomAlert);
 
-        // Admin Passcode Submission
+        adminToggleLink.addEventListener('click', () => {
+            landingAdminCard.classList.toggle('hidden');
+            if (landingAdminCard.classList.contains('hidden')) {
+                landingPage.classList.remove('md:grid-cols-3');
+                landingPage.classList.add('md:grid-cols-2', 'md:max-w-xl');
+            } else {
+                landingPage.classList.add('md:grid-cols-3');
+                landingPage.classList.remove('md:grid-cols-2', 'md:max-w-xl');
+            }
+        });
+
         adminLoginForm.addEventListener('submit', async (e) => {
             e.preventDefault();
-            const passcode = document.getElementById('admin-passcode-input').value.trim();
+            if (isUserBlocked) {
+                adminLoginMessageEl.textContent = '🚫 บัญชีนี้ถูกบล็อกถาวร!';
+                return;
+            }
+            const passcode = adminPasscodeInput.value.trim();
 
             if (passcode === ADMIN_PASSCODE) {
-                // **NEW 1: Set local Admin flag**
-                isAdmin = true; 
+                updateRole('Admin'); 
+                showPage('game');
+                startRealtimeListeners();
                 
-                // 2. Local UI changes:
-                adminLoginForm.classList.add('hidden');
-                adminControlPanel.classList.remove('hidden');
-                startGameButton.disabled = false; 
-                adminLoginMessageEl.textContent = '✅ เข้าสู่ระบบ Admin สำเร็จ!';
-                adminLoginMessageEl.className = 'mt-3 text-sm text-green-600 font-medium text-center';
-                
-                // **NEW 3: Global Firestore Signal: Set activeAdminId**
                 try {
                     const gameStateDocRef = doc(db, GAME_STATE_DOC_PATH, 'current');
                     await setDoc(gameStateDocRef, { activeAdminId: userId }, { merge: true }); 
@@ -646,99 +1034,105 @@
 
                 if (remaining > 0) {
                     adminLoginMessageEl.textContent = `❌ รหัสไม่ถูกต้อง! ลองอีกครั้ง คุณเหลือสิทธิ์อีก ${remaining} ครั้ง`;
-                    adminLoginMessageEl.className = 'mt-3 text-sm text-red-600 font-medium text-center';
                 } else {
                     adminLoginMessageEl.textContent = '🛑 คุณใส่รหัสผิดเกิน 3 ครั้ง บัญชีนี้ถูกบล็อกไม่ให้เข้าร่วมเกมถาวร';
-                    adminLoginMessageEl.className = 'mt-3 text-sm text-red-700 font-bold text-center';
                     adminLoginForm.querySelector('input').disabled = true;
                     adminLoginForm.querySelector('button').disabled = true;
-                    
-                    // บันทึกสถานะการบล็อกถาวรลงใน Firestore
                     if (userId) {
                         await blockUser(userId);
                     }
                 }
             }
-            document.getElementById('admin-passcode-input').value = ''; 
+            adminPasscodeInput.value = ''; 
         });
 
-
-        // Admin Start Button
-        startGameButton.addEventListener('click', startGame);
-
-        // Player Submission
-        form.addEventListener('submit', async (e) => {
+        playerRegistrationForm.addEventListener('submit', (e) => {
             e.preventDefault();
-
-            if (isUserBlocked) return; // ป้องกันการส่งถ้าถูกบล็อกแล้ว
-
-            if (gameState.status !== 'RUNNING') {
-                voteMessage.textContent = 'เกมยังไม่เริ่ม! รอแอดมินกดเริ่มเกม';
-                voteMessage.classList.remove('hidden', 'text-green-600');
-                voteMessage.classList.add('text-red-600');
-                return;
-            }
-
-            if (!userId) {
-                voteMessage.textContent = 'กำลังเตรียมระบบ... โปรดรอสักครู่';
-                voteMessage.classList.remove('hidden', 'text-green-600');
-                voteMessage.classList.add('text-red-600');
-                return;
-            }
-
-            const nameInput = document.getElementById('voter-name').value.trim();
-            const selectedVote = document.querySelector('input[name="vote"]:checked');
-
-            if (nameInput === "" || !selectedVote) {
-                voteMessage.textContent = 'กรุณากรอกชื่อและเลือกกลุ่ม';
-                voteMessage.classList.remove('hidden', 'text-green-600');
-                voteMessage.classList.add('text-red-600');
-                return;
-            }
-
-            const voteValue = parseInt(selectedVote.value);
-
-            submitButton.disabled = true;
-            submitButton.textContent = 'กำลังยืนยัน...';
-
-            try {
-                const voteDocRef = doc(db, VOTES_COLLECTION_PATH, userId);
-
-                await setDoc(voteDocRef, {
-                    name: nameInput,
-                    vote: voteValue,
-                    timestamp: serverTimestamp(),
-                    userId: userId 
-                }, { merge: true }); 
-
-                voteMessage.textContent = 'ยืนยันกลุ่มสำเร็จ! คุณยังสามารถเปลี่ยนกลุ่มได้ตลอดเวลาที่เกมยังดำเนินอยู่';
-                voteMessage.classList.remove('hidden', 'text-red-600');
-                voteMessage.classList.add('text-green-600');
+            const name = playerNameInput.value.trim();
+            if (name) {
+                sessionStorage.removeItem('playerName'); 
                 
-                submitButton.disabled = false;
-                submitButton.textContent = 'ยืนยันการเลือกกลุ่ม (เล่นได้)';
-
-            } catch (error) {
-                console.error("Error submitting vote: ", error);
-                voteMessage.textContent = 'เกิดข้อผิดพลาดในการบันทึก: ' + error.message;
-                voteMessage.classList.remove('hidden', 'text-green-600');
-                voteMessage.classList.add('text-red-600');
-                
-                submitButton.disabled = false;
-                submitButton.textContent = 'ยืนยันการเลือกกลุ่ม (เล่นได้)';
+                updateRole('Player', name);
+                showPage('game');
+                startRealtimeListeners();
             }
         });
         
-        // Watch for changes to re-evaluate form state
-        nameInput.addEventListener('input', () => {
-            enableVotingForm(gameState.status === 'RUNNING');
+        resumePlayerButton.addEventListener('click', () => {
+            const storedName = sessionStorage.getItem('playerName');
+            if (storedName) {
+                updateRole('Player', storedName);
+                showPage('game');
+                startRealtimeListeners();
+            }
+        });
+        
+        resumeAsGuestButton.addEventListener('click', async () => {
+            const currentGameState = (await getDoc(doc(db, GAME_STATE_DOC_PATH, 'current'))).data();
+            if (currentGameState?.status !== 'RUNNING' && currentGameState?.status !== 'PAUSED') {
+                showCustomAlert('เกมยังไม่เริ่ม! Guest ไม่สามารถเข้าชมได้จนกว่าแอดมินจะกดเริ่มเกม');
+                return;
+            }
+            updateRole('Guest');
+            showPage('game');
+            startRealtimeListeners();
+        });
+        
+        changeNameButton.addEventListener('click', () => {
+            sessionStorage.removeItem('playerName');
+            playerNameInput.dataset.forceRegister = 'true';
+            playerNameInput.value = '';
+            renderLandingPageUI(); 
         });
 
-        groupOptions.forEach(option => {
-            option.addEventListener('change', () => {
-                enableVotingForm(gameState.status === 'RUNNING');
-            });
+
+        guestAccessButton.addEventListener('click', async () => {
+            
+            let currentGameState;
+            try {
+                const docSnap = await getDoc(doc(db, GAME_STATE_DOC_PATH, 'current'));
+                if (docSnap.exists()) {
+                    currentGameState = docSnap.data();
+                } else {
+                    currentGameState = { status: 'IDLE' };
+                }
+            } catch (error) {
+                console.error("Error fetching game state for Guest: ", error);
+                showCustomAlert('เกิดข้อผิดพลาดในการเชื่อมต่อ กรุณาลองใหม่');
+                return;
+            }
+
+            if (currentGameState.status !== 'RUNNING' && currentGameState.status !== 'PAUSED') {
+                showCustomAlert('เกมยังไม่เริ่ม! Guest ไม่สามารถเข้าชมได้จนกว่าแอดมินจะกดเริ่มเกม');
+                return;
+            }
+            
+            updateRole('Guest');
+            showPage('game');
+            startRealtimeListeners();
         });
+        
+        // --- EVENT LISTENERS (Game Page) ---
+
+        
+        logoutAdminButton.addEventListener('click', async () => {
+             if (isAdmin) { 
+                 try {
+                    const gameStateDocRef = doc(db, GAME_STATE_DOC_PATH, 'current');
+                    await setDoc(gameStateDocRef, { activeAdminId: null }, { merge: true }); 
+                } catch (error) {
+                    console.error("Error clearing activeAdminId on logout: ", error);
+                }
+            }
+            sessionStorage.removeItem('currentUserRole');
+            sessionStorage.removeItem('playerName'); 
+            updateRole('Unknown');
+            showPage('landing');
+        });
+
+        // Attach the shared handler to both player and guest logout buttons
+        logoutGuestButton.addEventListener('click', handlePlayerGuestLogout);
+        logoutPlayerButton.addEventListener('click', handlePlayerGuestLogout); 
 
     </script>
 
