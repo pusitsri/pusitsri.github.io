@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Alice in AI Land: Game (A-F Groups)</title>
+    <title>Alice in AI Land : Golden Opportunity</title>
     <!-- Load Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
@@ -28,7 +28,13 @@
 
     <div class="container mx-auto p-4 md:p-8 relative"> <!-- Added relative for admin toggle positioning -->
         <header class="text-center mb-10">
-            <h1 class="text-4xl font-extrabold text-orange-500">Alice in AI Land: เลือกกลุ่ม</h1>
+            <h1 class="text-4xl font-extrabold text-orange-500">Alice in AI Land : Golden Opportunity</h1>
+            
+            <!-- Gold Price Display (NOW SHOWS ADMIN BASE PRICE) -->
+            <p id="gold-price-display" class="text-lg text-yellow-500 mt-1 font-semibold">
+                กำลังโหลดราคาฐาน...
+            </p>
+
             <!-- Subtitle is used for Landing Page text -->
             <p id="header-subtitle" class="text-lg text-gray-400 mt-2">โปรดระบุตัวตนเพื่อเข้าสู่ระบบเกม</p>
             
@@ -104,9 +110,6 @@
                         <button id="resume-as-guest-button" class="w-full mt-3 bg-gray-200 text-gray-700 p-3 rounded-lg font-semibold hover:bg-gray-300 transition duration-200 shadow-md border border-gray-400">
                             เข้าชมผลลัพธ์ (Guest Mode)
                         </button>
-                        <button id="change-name-button" class="w-full mt-3 text-sm text-gray-500 hover:text-red-500 transition duration-200">
-                            เปลี่ยนชื่อ / เริ่มใหม่
-                        </button>
                     </div>
 
                     <p class="text-sm text-gray-500 mt-3 text-center">
@@ -151,6 +154,20 @@
                     <h2 class="text-2xl font-bold mb-4 text-orange-600 border-b pb-3">
                         สถานะและการควบคุมเกม
                     </h2>
+                    
+                    <!-- Gold Price Base Input (NEW) -->
+                    <div class="mb-4">
+                        <label for="gold-price-base-input" class="block text-sm font-medium text-gray-700 mb-2">
+                            ราคาฐานทองคำ 1 บาท (สำหรับรางวัล)
+                        </label>
+                        <input type="number" id="gold-price-base-input" min="1000" step="100" 
+                            class="w-full p-2 border border-gray-300 rounded-lg focus:ring-orange-500 focus:border-orange-500 text-right font-mono"
+                            value="64000" disabled>
+                        <p class="text-xs text-gray-500 mt-1">
+                            สามารถแก้ไขได้เมื่อเกมอยู่ในสถานะ 'จบเกม / รอเริ่ม'
+                        </p>
+                    </div>
+                    
                     <div id="game-status-display" class="mb-4 text-center p-3 rounded-lg font-bold text-lg">
                         <p id="status-text" class="text-gray-800">กำลังเชื่อมต่อ...</p>
                     </div>
@@ -192,6 +209,16 @@
                     </button>
                 </div>
                 
+                <!-- NEW: Admin Player List Panel (Visible only to Admin) -->
+                <div id="admin-player-list-panel" class="bg-white p-6 rounded-xl shadow-2xl border border-gray-300 hidden">
+                    <h2 class="text-2xl font-bold mb-4 text-orange-600 border-b pb-3">
+                        รายชื่อผู้เล่นทั้งหมด (<span id="admin-total-players" class="text-gray-600">0</span> คน)
+                    </h2>
+                    <div id="admin-player-list" class="space-y-2 max-h-60 overflow-y-auto">
+                        <p class="text-sm italic text-gray-500">รอข้อมูลผู้เล่น...</p>
+                    </div>
+                </div>
+
                 <!-- Player Info and Message (NEW SECTION) -->
                 <div id="player-info-section" class="bg-white p-6 rounded-xl shadow-2xl h-fit border border-gray-300 hidden">
                     <h2 class="text-2xl font-bold mb-4 text-gray-800 border-b pb-3">สถานะผู้เล่น</h2>
@@ -271,10 +298,19 @@
         const ADMIN_PASSCODE = '7793';
         const MAX_LOGIN_ATTEMPTS = 3;
         const DEFAULT_DURATION_SECONDS = 120; // 2 นาที
+        // NEW: Base price for 1 Baht of gold (for reward calculation)
+        const DEFAULT_GOLD_PRICE = 64000; 
+
         // Game state now uses three status: IDLE, RUNNING, PAUSED
-        let gameState = { status: 'IDLE', endTime: null, remainingTimeSeconds: DEFAULT_DURATION_SECONDS, newGameTimestamp: null };
+        let gameState = { 
+            status: 'IDLE', 
+            endTime: null, 
+            remainingTimeSeconds: DEFAULT_DURATION_SECONDS, 
+            newGameTimestamp: null,
+            currentGoldPriceBase: DEFAULT_GOLD_PRICE // NEW FIELD
+        };
         let timerInterval = null;
-        const GROUP_LABELS = ['A', 'B', 'C', 'D', 'E', 'F'];
+        const GROUP_LABELS = ['A', 'B', 'C', 'D', 'E']; // 5 groups
         let hasSubmittedInitialVote = false; 
 
         // *** ROLE STATES ***
@@ -323,7 +359,6 @@
         const playerResumeContentEl = document.getElementById('player-resume-content');
         const resumePlayerButton = document.getElementById('resume-player-button');
         const resumeAsGuestButton = document.getElementById('resume-as-guest-button');
-        const changeNameButton = document.getElementById('change-name-button');
         const resumedPlayerNameEl = document.getElementById('resumed-player-name');
 
         const guestAccessButton = document.getElementById('guest-access-button');
@@ -340,7 +375,10 @@
 
         // Game Page Elements
         const adminControlPanel = document.getElementById('admin-control-panel');
-        const playerInfoSection = document.getElementById('player-info-section'); // MODIFIED
+        const adminPlayerListPanel = document.getElementById('admin-player-list-panel'); 
+        const adminTotalPlayersEl = document.getElementById('admin-total-players'); 
+        const adminPlayerListEl = document.getElementById('admin-player-list'); 
+        const playerInfoSection = document.getElementById('player-info-section'); 
         const guestViewSection = document.getElementById('guest-view-section');
         const currentPlayerNameEl = document.getElementById('current-player-name');
         const logoutAdminButton = document.getElementById('logout-admin-button');
@@ -348,6 +386,12 @@
         const logoutPlayerButton = document.getElementById('logout-player-button');
         const gameVoterSummaryEl = document.getElementById('game-voter-summary');
         const voterCountHeaderEl = document.getElementById('voter-count-header');
+        
+        // Gold Price Element
+        const goldPriceDisplayEl = document.getElementById('gold-price-display');
+        
+        // Admin Price Base Input (NEW)
+        const goldPriceBaseInput = document.getElementById('gold-price-base-input');
 
         // Admin Control Elements 
         const mainControlButton = document.getElementById('main-control-button');
@@ -355,7 +399,7 @@
         const timePlusBtn = document.getElementById('time-plus-btn');
         const timeMinusBtn = document.getElementById('time-minus-btn');
 
-        const voteMessage = document.getElementById('vote-message'); // Moved to player-info-section
+        const voteMessage = document.getElementById('vote-message'); 
         const resultsContainer = document.getElementById('results-container');
         const loadingMessage = document.getElementById('loading-message');
         const authStatusEl = document.getElementById('auth-status');
@@ -367,6 +411,10 @@
         const GAME_STATE_DOC_PATH = `artifacts/${appId}/public/data/gameState`;
         const VOTES_COLLECTION_PATH = `artifacts/${appId}/public/data/votes`;
         const BLOCK_STATUS_DOC_PATH = (uid) => `artifacts/${appId}/users/${uid}/status/adminBlock`;
+
+        // Gemini API Configuration
+        const GEMINI_API_URL = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent";
+        const API_KEY = ""; // Canvas will provide this if empty
 
         // Set Firebase log level for debugging
         setLogLevel('Debug');
@@ -382,9 +430,17 @@
             customAlertModal.classList.add('hidden');
         }
         
+        function formatGoldWeight(unit) {
+            if (unit === 1.00) return '1 บาท';
+            if (unit === 0.50) return '50 สตางค์';
+            if (unit === 0.25) return '25 สตางค์';
+            return '0 บาท';
+        }
+
         function showPage(pageId) {
             landingPage.classList.add('page-hidden');
             gamePage.classList.add('page-hidden');
+            adminToggleLink.classList.add('hidden'); // Hide the Admin link by default
             
             if (pageId === 'landing') {
                 landingPage.classList.remove('page-hidden');
@@ -395,10 +451,14 @@
                 guestAccessErrorEl.classList.add('hidden'); 
                 renderLandingPageUI(); 
                 
+                // Show the Admin link only on the landing page
+                adminToggleLink.classList.remove('hidden'); 
+                
             } else if (pageId === 'game') {
                 gamePage.classList.remove('page-hidden');
                 headerSubtitle.classList.add('hidden'); // Hide landing subtitle
                 gameVoterSummaryEl.classList.remove('hidden'); // Show game summary
+                // The Admin link remains hidden here
             }
         }
         
@@ -441,11 +501,13 @@
         function renderGamePageUI() {
             // Hide all role-specific elements first
             adminControlPanel.classList.add('hidden');
+            adminPlayerListPanel.classList.add('hidden'); 
             playerInfoSection.classList.add('hidden');
             guestViewSection.classList.add('hidden');
             
             if (isAdmin) {
                 adminControlPanel.classList.remove('hidden');
+                adminPlayerListPanel.classList.remove('hidden'); 
             } else if (isPlayer) {
                 playerInfoSection.classList.remove('hidden');
                 currentPlayerNameEl.textContent = playerName;
@@ -483,12 +545,7 @@
                     if (savedRole && savedRole !== 'Unknown') {
                         updateRole(savedRole, savedName);
                         startRealtimeListeners();
-                        if (savedRole === 'Guest' && gameState.status === 'IDLE') {
-                            updateRole('Unknown'); 
-                            showPage('landing');
-                        } else {
-                            showPage('game');
-                        }
+                        showPage('game');
                     } else {
                         showPage('landing');
                     }
@@ -557,7 +614,8 @@
                             status: 'IDLE', 
                             endTime: null, 
                             remainingTimeSeconds: DEFAULT_DURATION_SECONDS,
-                            newGameTimestamp: serverTimestamp()
+                            newGameTimestamp: serverTimestamp(),
+                            currentGoldPriceBase: DEFAULT_GOLD_PRICE // Initialize NEW FIELD
                         }, { merge: true });
                     }
                     handleGameStateChange();
@@ -572,7 +630,8 @@
             onSnapshot(q, (snapshot) => {
                 loadingMessage.classList.add('hidden'); 
                 const allVotes = [];
-                const results = { 0: [], 1: [], 2: [], 3: [], 4: [], 5: [] };
+                // Initialized for 5 groups (0 to 4)
+                const results = { 0: [], 1: [], 2: [], 3: [], 4: [] }; 
                 let userDocFound = false; 
                 let userCurrentVote = -1;
 
@@ -580,7 +639,8 @@
                     const data = docSnapshot.data();
                     allVotes.push(data);
                     
-                    if (data.vote !== undefined && data.vote >= 0 && data.vote <= 5 && results[data.vote]) {
+                    // Check vote up to 4
+                    if (data.vote !== undefined && data.vote >= 0 && data.vote <= 4 && results[data.vote]) { 
                         results[data.vote].push(data.name);
                     }
 
@@ -606,6 +666,9 @@
             terminateButton.disabled = (status === 'IDLE');
             timePlusBtn.disabled = (status === 'IDLE');
             timeMinusBtn.disabled = (status === 'IDLE');
+            
+            // NEW: Enable price editing only when IDLE
+            goldPriceBaseInput.disabled = (status !== 'IDLE'); 
 
             if (status === 'IDLE') {
                 mainControlButton.textContent = 'เริ่มต้น (ล้างผลเก่า)';
@@ -633,25 +696,37 @@
             clearInterval(timerInterval); 
             timerDisplayEl.classList.add('hidden'); 
             
-            const isFreshGame = gameState.status === 'IDLE' && (gameState.newGameTimestamp || 0);
+            const currentTimestamp = gameState.newGameTimestamp?.toMillis();
+            const storedTimestamp = sessionStorage.getItem('latestGameTimestamp');
+            const isFreshGame = gameState.status === 'IDLE' && (currentTimestamp || 0);
             
-            // Redirect players/guests if a new game reset just occurred
-            if ((isPlayer || isGuest) && isFreshGame && sessionStorage.getItem('latestGameTimestamp') !== gameState.newGameTimestamp?.toMillis()) {
-                if (isPlayer) {
+            // --- NEW: Update Gold Price Display in header based on game state value ---
+            const currentGoldPrice = gameState.currentGoldPriceBase || DEFAULT_GOLD_PRICE;
+            goldPriceDisplayEl.textContent = `ราคาทองทำรูปพรรณ 1 บาท: ${currentGoldPrice.toLocaleString()} บาท`;
+
+            // NEW: Update Admin price input value based on latest gameState
+            if (isAdmin && gameState.currentGoldPriceBase) {
+                goldPriceBaseInput.value = gameState.currentGoldPriceBase;
+            }
+
+            // *** FIXED LOGIC: FORCING RE-REGISTRATION ON GAME RESET ***
+            if ((isPlayer || isGuest) && isFreshGame) {
+                if (storedTimestamp && storedTimestamp !== String(currentTimestamp)) {
+                    // Game reset detected! Force re-registration by clearing both role and name.
+                    console.log("Game reset detected. Forcing re-registration.");
                     sessionStorage.removeItem('currentUserRole');
-                } else { 
-                    sessionStorage.removeItem('currentUserRole');
-                    sessionStorage.removeItem('playerName');
+                    sessionStorage.removeItem('playerName'); // CHANGED: Now removing playerName to force registration
+                    sessionStorage.removeItem('latestGameTimestamp');
+                    updateRole('Unknown');
+                    showPage('landing');
+                    return;
                 }
-                sessionStorage.removeItem('latestGameTimestamp');
-                updateRole('Unknown');
-                showPage('landing');
-                return;
+                
+                // If storedTimestamp is missing (first load after registration) OR it matches,
+                // set the session timestamp now to the current one and proceed to stay on the game page.
+                sessionStorage.setItem('latestGameTimestamp', String(currentTimestamp));
             }
-            
-            if (isFreshGame) {
-                sessionStorage.setItem('latestGameTimestamp', gameState.newGameTimestamp.toMillis());
-            }
+            // *** END FIXED LOGIC ***
 
             // Update Admin Controls based on new status
             updateAdminControls(gameState.status);
@@ -700,8 +775,6 @@
         }
 
         // --- ADMIN ACTIONS ---
-        // (Admin actions functions remain unchanged)
-        // ... (startGame, togglePause, terminateGame, adjustTime, clearPreviousGameData) ...
         
         mainControlButton.addEventListener('click', async () => {
             if (!db || !userId || !isAdmin) return;
@@ -720,6 +793,9 @@
             mainControlButton.disabled = true;
             mainControlButton.textContent = 'กำลังล้างข้อมูล...';
             
+            // Get the current price from the Admin input field
+            const newGoldPriceBase = parseInt(goldPriceBaseInput.value) || DEFAULT_GOLD_PRICE;
+
             try {
                 await clearPreviousGameData();
                 
@@ -732,7 +808,8 @@
                     endTime: endTime,
                     remainingTimeSeconds: DEFAULT_DURATION_SECONDS, // Initial time for the round
                     newGameTimestamp: serverTimestamp(),
-                    adminId: userId 
+                    adminId: userId,
+                    currentGoldPriceBase: newGoldPriceBase // NEW: Save the price base
                 });
 
             } catch (error) {
@@ -882,26 +959,83 @@
             
             resultsContainer.innerHTML = ''; 
             
-            // 3. Determine if voter names should be shown (only when IDLE/game ended)
-            const showNames = gameState.status === 'IDLE';
+            // 2. Determine if voter names should be shown (only when IDLE/game ended OR if Admin)
+            const showNames = gameState.status === 'IDLE' || isAdmin;
 
-            const voteCounts = Object.keys(results).map(vote => ({
+            let voteCounts = Object.keys(results).map(vote => ({
                 number: parseInt(vote),
                 count: results[vote].length,
                 names: results[vote],
                 label: GROUP_LABELS[parseInt(vote)] // Include label for sorting
             }));
+            
+            // 3. Populate Admin Player List Panel 
+            if (isAdmin) {
+                // Get all unique names from all groups
+                const uniquePlayers = voteCounts.flatMap(group => group.names)
+                    .filter((value, index, self) => self.indexOf(value) === index) // Get unique names
+                    .sort((a, b) => a.localeCompare(b)); // Sort alphabetically
 
-            // *** NEW SORTING LOGIC: Count DESC, Label ASC ***
+                adminTotalPlayersEl.textContent = uniquePlayers.length;
+                const playerListHtml = uniquePlayers.map(name => 
+                    `<p class="text-sm text-gray-800 border-b border-gray-100 py-1 px-1">${name}</p>`
+                ).join('');
+                adminPlayerListEl.innerHTML = playerListHtml || '<p class="text-sm italic text-gray-500">ยังไม่มีผู้เล่นลงทะเบียน</p>';
+            }
+            
+            // --- REWARD CALCULATION ---
+            
+            // 3a. Find the smallest non-zero count
+            let minCount = Infinity;
+            voteCounts.forEach(group => {
+                if (group.count > 0 && group.count < minCount) {
+                    minCount = group.count;
+                }
+            });
+            const smallestCount = minCount === Infinity ? 0 : minCount; 
+            
+            // 3b. Calculate rewards for each group
+            const goldPriceBase = gameState.currentGoldPriceBase || DEFAULT_GOLD_PRICE; // Use current base price
+
+            voteCounts.forEach(group => {
+                let goldRewardUnit = 0; // Reward in Baht (weight) unit: 1.00, 0.50, 0.25
+                
+                if (group.count > 0) {
+                    if (group.count === smallestCount) {
+                        // Rule 3: Smallest group gets 1 Baht (overrides others)
+                        goldRewardUnit = 1.00; 
+                    } else if (group.count % 2 === 0) {
+                        // Rule 1: Even count gets 0.50 Baht
+                        goldRewardUnit = 0.50;
+                    } else {
+                        // Rule 2: Odd count gets 0.25 Baht
+                        goldRewardUnit = 0.25;
+                    }
+                }
+                
+                group.goldRewardUnit = goldRewardUnit; // Store the unit
+                
+                // Calculate monetary value based on the Admin-set price
+                const monetaryTotalReward = goldRewardUnit * goldPriceBase;
+                
+                group.monetaryTotalReward = monetaryTotalReward; 
+                group.monetaryAverageReward = group.count > 0 ? (monetaryTotalReward / group.count) : 0;
+            });
+            
+            // --- END REWARD CALCULATION ---
+
+            
+            // 4. Sort results
             voteCounts.sort((a, b) => {
                 if (b.count !== a.count) {
                     return b.count - a.count; // Sort by count descending
                 }
-                return a.label.localeCompare(b.label); // Sort by label ascending (A-F)
+                return a.label.localeCompare(b.label); // Sort by label ascending (A-E)
             });
-            // *** END NEW SORTING LOGIC ***
 
-            voteCounts.forEach(({ number, count, names, label }) => {
+
+            // 5. Render group results
+            voteCounts.forEach(({ number, count, names, label, monetaryTotalReward, monetaryAverageReward, goldRewardUnit }) => {
                 const percentage = totalCount > 0 ? (count / totalCount) * 100 : 0;
 
                 // Logic for showing/hiding names
@@ -945,6 +1079,11 @@
                         </div>
                     `;
                 }
+                
+                // Format numbers with Thai locale and fixed decimals
+                // const formattedMonetaryTotalReward = monetaryTotalReward.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 }); // REMOVED
+                const formattedMonetaryAverageReward = monetaryAverageReward.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+                const formattedGoldWeightReward = formatGoldWeight(goldRewardUnit); // NEW
 
 
                 const resultBlock = `
@@ -962,6 +1101,17 @@
                         </div>
                         <p class="text-sm text-gray-600 mb-2">คิดเป็น: ${percentage.toFixed(1)}%</p>
                         
+                        <!-- Reward Details (MODIFIED: SHOWING WEIGHT) -->
+                        <div class="mt-4 pt-3 border-t border-gray-200">
+                            <h4 class="font-semibold text-yellow-700 mb-1">🎁 รางวัลที่ได้รับ:</h4>
+                            <p class="text-sm text-gray-800">
+                                รางวัลรวม: <span class="font-bold text-yellow-600">${formattedGoldWeightReward}</span>
+                            </p>
+                            <p class="text-sm text-gray-800">
+                                รางวัลเฉลี่ย/คน: <span class="font-bold text-yellow-600">${formattedMonetaryAverageReward} บาท</span>
+                            </p>
+                        </div>
+
                         <!-- Voter List (Visibility controlled by JS/showNames) -->
                         <div class="mt-4 pt-3 border-t border-gray-200">
                             <h4 class="font-semibold text-gray-700">${voterListTitle}</h4>
@@ -982,12 +1132,8 @@
         
         // --- LOGOUT HANDLER (Shared by Player and Guest) ---
         function handlePlayerGuestLogout() {
-            const roleToClear = sessionStorage.getItem('currentUserRole');
             sessionStorage.removeItem('currentUserRole');
-            
-            if (roleToClear === 'Guest') {
-                sessionStorage.removeItem('playerName');
-            }
+            // playerName is intentionally NOT removed here to preserve the identity for resume.
             
             updateRole('Unknown');
             showPage('landing');
@@ -1023,7 +1169,8 @@
                 
                 try {
                     const gameStateDocRef = doc(db, GAME_STATE_DOC_PATH, 'current');
-                    await setDoc(gameStateDocRef, { activeAdminId: userId }, { merge: true }); 
+                    // Update activeAdminId and ensure currentGoldPriceBase is set for display
+                    await setDoc(gameStateDocRef, { activeAdminId: userId, currentGoldPriceBase: parseInt(goldPriceBaseInput.value) || DEFAULT_GOLD_PRICE }, { merge: true }); 
                 } catch (error) {
                     console.error("Error setting activeAdminId: ", error);
                 }
@@ -1050,7 +1197,8 @@
             e.preventDefault();
             const name = playerNameInput.value.trim();
             if (name) {
-                sessionStorage.removeItem('playerName'); 
+                // When registering fresh, save the name and proceed
+                sessionStorage.setItem('playerName', name);
                 
                 updateRole('Player', name);
                 showPage('game');
@@ -1067,46 +1215,15 @@
             }
         });
         
-        resumeAsGuestButton.addEventListener('click', async () => {
-            const currentGameState = (await getDoc(doc(db, GAME_STATE_DOC_PATH, 'current'))).data();
-            if (currentGameState?.status !== 'RUNNING' && currentGameState?.status !== 'PAUSED') {
-                showCustomAlert('เกมยังไม่เริ่ม! Guest ไม่สามารถเข้าชมได้จนกว่าแอดมินจะกดเริ่มเกม');
-                return;
-            }
+        // --- MODIFIED: REMOVED GAME STATE CHECK ---
+        resumeAsGuestButton.addEventListener('click', () => {
             updateRole('Guest');
             showPage('game');
             startRealtimeListeners();
         });
         
-        changeNameButton.addEventListener('click', () => {
-            sessionStorage.removeItem('playerName');
-            playerNameInput.dataset.forceRegister = 'true';
-            playerNameInput.value = '';
-            renderLandingPageUI(); 
-        });
-
-
-        guestAccessButton.addEventListener('click', async () => {
-            
-            let currentGameState;
-            try {
-                const docSnap = await getDoc(doc(db, GAME_STATE_DOC_PATH, 'current'));
-                if (docSnap.exists()) {
-                    currentGameState = docSnap.data();
-                } else {
-                    currentGameState = { status: 'IDLE' };
-                }
-            } catch (error) {
-                console.error("Error fetching game state for Guest: ", error);
-                showCustomAlert('เกิดข้อผิดพลาดในการเชื่อมต่อ กรุณาลองใหม่');
-                return;
-            }
-
-            if (currentGameState.status !== 'RUNNING' && currentGameState.status !== 'PAUSED') {
-                showCustomAlert('เกมยังไม่เริ่ม! Guest ไม่สามารถเข้าชมได้จนกว่าแอดมินจะกดเริ่มเกม');
-                return;
-            }
-            
+        // --- MODIFIED: REMOVED GAME STATE CHECK ---
+        guestAccessButton.addEventListener('click', () => {
             updateRole('Guest');
             showPage('game');
             startRealtimeListeners();
