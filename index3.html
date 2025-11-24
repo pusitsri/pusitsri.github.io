@@ -1,0 +1,1319 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Alice in AI Land : Golden Opportunity</title>
+    <!-- Load Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+    <style>
+        /* Theme: Black, Orange, White */
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #111827; /* Dark Gray/Black background */
+        }
+        .container {
+            max-width: 1200px;
+        }
+        /* Custom Orange Scrollbar for better theme integration */
+        ::-webkit-scrollbar { width: 8px; }
+        ::-webkit-scrollbar-thumb { background: #f97316; border-radius: 10px; }
+        ::-webkit-scrollbar-track { background: #374151; }
+        /* Utility for simulating page switch */
+        .page-hidden { display: none !important; }
+    </style>
+</head>
+<body>
+
+    <div class="container mx-auto p-4 md:p-8 relative"> <!-- Added relative for admin toggle positioning -->
+        <header class="text-center mb-10">
+            <h1 class="text-4xl font-extrabold text-orange-500">Alice in AI Land : Golden Opportunity</h1>
+            
+            <!-- Gold Price Display (NOW SHOWS ADMIN BASE PRICE) -->
+            <p id="gold-price-display" class="text-lg text-yellow-500 mt-1 font-semibold">
+                กำลังโหลดราคาฐาน...
+            </p>
+
+            <!-- Subtitle is used for Landing Page text -->
+            <p id="header-subtitle" class="text-lg text-gray-400 mt-2">โปรดระบุตัวตนเพื่อเข้าสู่ระบบเกม</p>
+            
+            <!-- Total Voter Count Display for Game Page (Hidden by default, positioned in header) -->
+            <div id="game-voter-summary" class="text-lg text-gray-300 mt-2 hidden">
+                <span class="text-xl">จำนวนผู้เล่นทั้งหมด:</span> 
+                <span id="voter-count-header" class="text-2xl font-bold ml-2 text-orange-400">0</span> 
+                <span>คน</span>
+            </div>
+        </header>
+
+        <!-- ============================================== -->
+        <!-- STEP 1: LANDING/AUTH PAGE -->
+        <!-- ============================================== -->
+        <div class="relative max-w-4xl mx-auto">
+            <!-- Admin Toggle Link (New Element: Positioned top-left) -->
+            <button id="admin-toggle-link" class="absolute top-[-1.5rem] left-4 text-sm text-gray-400 hover:text-orange-500 transition duration-200">
+                🔑 เข้าสู่ระบบ Admin
+            </button>
+            <!-- Error message will now be shown via dialog, this is just for visual space -->
+            <p id="guest-access-error" class="absolute top-[-1.5rem] right-4 text-sm text-red-500 font-medium hidden"></p> 
+
+            <!-- Landing Page Grid -->
+            <div id="landing-page" class="grid grid-cols-1 md:grid-cols-3 gap-8 page-hidden">
+                
+                <!-- Admin Login (Initially Hidden, Toggle by Link) -->
+                <div id="landing-admin-card" class="bg-white p-6 rounded-xl shadow-2xl border-4 border-gray-300 hidden">
+                    <h2 class="text-2xl font-bold mb-4 text-orange-600 border-b pb-3">
+                        เข้าสู่ระบบ Admin
+                    </h2>
+                    <form id="admin-login-form">
+                        <label for="admin-passcode-input" class="block text-sm font-medium text-gray-700 mb-2">ใส่รหัส Admin 4 หลัก</label>
+                        <input type="password" id="admin-passcode-input" required maxlength="4" placeholder="****"
+                            class="w-full p-3 border border-gray-300 rounded-lg focus:ring-orange-500 focus:border-orange-500 transition duration-150 text-center text-xl font-mono text-gray-900">
+                        <button type="submit" id="landing-admin-btn"
+                            class="w-full mt-4 bg-gray-500 text-white p-3 rounded-lg font-semibold hover:bg-gray-600 transition duration-200 shadow-md">
+                            เข้าสู่ระบบ Admin
+                        </button>
+                    </form>
+                    <p id="admin-login-message" class="mt-3 text-sm text-red-600 font-medium text-center"></p>
+                </div>
+
+                <!-- Player Registration / Resume Card -->
+                <div class="bg-white p-6 rounded-xl shadow-2xl border border-gray-300 col-span-1 md:col-span-1" id="player-card"> 
+                    <h2 class="text-2xl font-bold mb-4 text-gray-800 border-b pb-3">
+                        ลงทะเบียนผู้เล่น
+                    </h2>
+                    
+                    <!-- Content for NEW Player (Default) -->
+                    <div id="player-card-content"> 
+                        <form id="player-registration-form">
+                            <label for="player-name-input" class="block text-sm font-medium text-gray-700 mb-2">ชื่อผู้เล่น</label>
+                            <input type="text" id="player-name-input" required placeholder="ชื่อหรือชื่อเล่น"
+                                class="w-full p-3 border border-gray-300 rounded-lg focus:ring-orange-500 focus:border-orange-500 transition duration-150 text-gray-900">
+                            <button type="submit"
+                                class="w-full mt-4 bg-orange-500 text-white p-3 rounded-lg font-semibold hover:bg-orange-600 transition duration-200 shadow-md">
+                                เข้าเล่นเกม
+                            </button>
+                        </form>
+                    </div>
+
+                    <!-- Content for RETURNING Player (Hidden by default, shown via JS) -->
+                    <div id="player-resume-content" class="hidden">
+                        <p class="text-lg text-gray-700 mb-4">
+                            ยินดีต้อนรับกลับมา, <span id="resumed-player-name" class="font-bold text-orange-600"></span>!
+                        </p>
+                        <button id="resume-player-button" class="w-full mt-2 bg-orange-500 text-white p-3 rounded-lg font-semibold hover:bg-orange-600 transition duration-200 shadow-md">
+                            เล่นเกมต่อในชื่อนี้
+                        </button>
+                        <button id="resume-as-guest-button" class="w-full mt-3 bg-gray-200 text-gray-700 p-3 rounded-lg font-semibold hover:bg-gray-300 transition duration-200 shadow-md border border-gray-400">
+                            เข้าชมผลลัพธ์ (Guest Mode)
+                        </button>
+                    </div>
+
+                    <p class="text-sm text-gray-500 mt-3 text-center">
+                        (คุณจะสามารถเปลี่ยนกลุ่มได้ แต่ไม่สามารถเปลี่ยนชื่อได้หลังจากส่งครั้งแรก)
+                    </p>
+                </div>
+
+                <!-- Guest Access -->
+                <div class="bg-white p-6 rounded-xl shadow-2xl border border-gray-300 flex flex-col justify-between col-span-1 md:col-span-1">
+                    <div>
+                        <h2 class="text-2xl font-bold mb-4 text-gray-800 border-b pb-3">
+                            เข้าชมผลลัพธ์
+                        </h2>
+                        <p class="text-gray-600 mb-4">
+                            เข้าสู่หน้าเกมโดยไม่ต้องลงทะเบียนชื่อและไม่สามารถร่วมเล่นเกมได้ (ดูได้อย่างเดียว)
+                        </p>
+                    </div>
+                    <button id="guest-access-button"
+                        class="w-full bg-gray-200 text-gray-700 p-3 rounded-lg font-semibold hover:bg-gray-300 transition duration-200 shadow-md border border-gray-400">
+                        เข้าชม (Guest)
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- ============================================== -->
+        <!-- STEP 2: GAME PAGE -->
+        <!-- ============================================== -->
+        <div id="game-page" class="grid grid-cols-1 lg:grid-cols-3 gap-10 page-hidden">
+            
+            <!-- Game Control, Timer & Player/Guest Area -->
+            <div class="lg:col-span-1 space-y-8">
+                
+                <!-- GLOBAL TIMER DISPLAY (Visible to all when game is RUNNING) -->
+                <div id="timer-display" class="bg-white p-4 rounded-xl shadow-2xl border border-gray-300 text-center hidden">
+                    <p class="text-xl font-semibold text-gray-800 mb-2">เวลาที่เหลือ:</p>
+                    <span id="timer-value" class="text-6xl font-extrabold text-orange-600">00:00</span>
+                </div>
+
+                <!-- Admin Control Panel (Visible only to Admin) -->
+                <div id="admin-control-panel" class="bg-white p-6 rounded-xl shadow-2xl border-4 border-orange-500 hidden">
+                    <h2 class="text-2xl font-bold mb-4 text-orange-600 border-b pb-3">
+                        สถานะและการควบคุมเกม
+                    </h2>
+                    
+                    <!-- Gold Price Base Input (NEW) -->
+                    <div class="mb-4">
+                        <label for="gold-price-base-input" class="block text-sm font-medium text-gray-700 mb-2">
+                            ราคาฐานทองคำ 1 บาท (สำหรับรางวัล)
+                        </label>
+                        <input type="number" id="gold-price-base-input" min="1000" step="100" 
+                            class="w-full p-2 border border-gray-300 rounded-lg focus:ring-orange-500 focus:border-orange-500 text-right font-mono"
+                            value="64000" disabled>
+                        <p class="text-xs text-gray-500 mt-1">
+                            สามารถแก้ไขได้เมื่อเกมอยู่ในสถานะ 'จบเกม / รอเริ่ม'
+                        </p>
+                    </div>
+                    
+                    <!-- NEW: Admin Passcode Configuration -->
+                    <div class="mb-4 p-3 border border-red-300 rounded-lg bg-red-50">
+                        <h3 class="text-lg font-bold text-red-700 mb-2">ตั้งค่ารหัส Admin</h3>
+                        <label for="new-admin-passcode-input" class="block text-sm font-medium text-gray-700 mb-2">รหัส Admin ใหม่ (4 หลัก)</label>
+                        <div class="flex space-x-2">
+                            <input type="password" id="new-admin-passcode-input" required maxlength="4" placeholder="****"
+                                class="w-full p-2 border border-gray-300 rounded-lg focus:ring-red-500 focus:border-red-500 text-center text-xl font-mono text-gray-900">
+                            <button id="update-passcode-btn" 
+                                class="bg-red-500 text-white p-2 rounded-lg font-semibold hover:bg-red-600 transition duration-200 shadow-md">
+                                บันทึกรหัส
+                            </button>
+                        </div>
+                        <p id="passcode-update-message" class="text-sm mt-2 text-center text-gray-600"></p>
+                    </div>
+
+                    <div id="game-status-display" class="mb-4 text-center p-3 rounded-lg font-bold text-lg">
+                        <p id="status-text" class="text-gray-800">กำลังเชื่อมต่อ...</p>
+                    </div>
+                    
+                    <!-- Timer Adjustments -->
+                    <div class="mb-4">
+                        <h3 class="text-sm font-medium text-gray-700 mb-2">ปรับเวลาคงเหลือ (ครั้งละ 30 วินาที)</h3>
+                        <div class="flex justify-between items-center space-x-2">
+                            <button id="time-minus-btn" disabled 
+                                class="w-1/2 bg-gray-600 text-white p-2 rounded-lg font-semibold hover:bg-gray-700 transition duration-200 disabled:opacity-50">
+                                - 30 วินาที
+                            </button>
+                            <button id="time-plus-btn" disabled 
+                                class="w-1/2 bg-gray-600 text-white p-2 rounded-lg font-semibold hover:bg-gray-700 transition duration-200 disabled:opacity-50">
+                                + 30 วินาที
+                            </button>
+                        </div>
+                    </div>
+
+
+                    <!-- Main Control Buttons -->
+                    <div class="grid grid-cols-2 gap-3 mb-4">
+                        <button id="main-control-button" disabled
+                            class="col-span-1 bg-orange-500 text-white p-3 rounded-lg font-semibold hover:bg-orange-600 transition duration-200 shadow-lg disabled:opacity-50 disabled:cursor-not-allowed">
+                            เริ่มต้น
+                        </button>
+                        <button id="terminate-button" disabled
+                            class="col-span-1 bg-red-600 text-white p-3 rounded-lg font-semibold hover:bg-red-700 transition duration-200 shadow-lg disabled:opacity-50 disabled:cursor-not-allowed">
+                            จบเกมทันที
+                        </button>
+                    </div>
+                    
+                    <p class="text-xs text-gray-500 mt-2 text-center">
+                        *Admin ไม่สามารถเข้าร่วมเล่นเกมได้
+                    </p>
+                    <button id="logout-admin-button"
+                        class="w-full mt-4 bg-gray-400 text-gray-800 p-2 rounded-lg font-semibold hover:bg-gray-500 transition duration-200 shadow-md">
+                        ออกจากระบบ Admin
+                    </button>
+                </div>
+                
+                <!-- NEW: Admin Player List Panel (Visible only to Admin) -->
+                <div id="admin-player-list-panel" class="bg-white p-6 rounded-xl shadow-2xl border border-gray-300 hidden">
+                    <h2 class="text-2xl font-bold mb-4 text-orange-600 border-b pb-3">
+                        รายชื่อผู้เล่นทั้งหมด (<span id="admin-total-players" class="text-gray-600">0</span> คน)
+                    </h2>
+                    <div id="admin-player-list" class="space-y-2 max-h-60 overflow-y-auto">
+                        <p class="text-sm italic text-gray-500">รอข้อมูลผู้เล่น...</p>
+                    </div>
+                </div>
+
+                <!-- Player Info and Message (NEW SECTION) -->
+                <div id="player-info-section" class="bg-white p-6 rounded-xl shadow-2xl h-fit border border-gray-300 hidden">
+                    <h2 class="text-2xl font-bold mb-4 text-gray-800 border-b pb-3">สถานะผู้เล่น</h2>
+                    
+                    <p id="player-name-display" class="text-lg font-semibold text-gray-700 mb-4">
+                        ผู้เล่น: <span id="current-player-name" class="text-orange-600"></span>
+                    </p>
+
+                    <div id="vote-message-container">
+                        <p id="vote-message" class="mt-4 text-center text-red-600 font-semibold hidden">
+                            <!-- Success/Error message will appear here -->
+                        </p>
+                    </div>
+                    
+                    <!-- LOGOUT BUTTON FOR PLAYER -->
+                    <button id="logout-player-button" 
+                        class="w-full mt-4 bg-gray-200 text-gray-700 p-2 rounded-lg font-semibold hover:bg-gray-300 transition duration-200 shadow-md border border-gray-400">
+                        ออกจากระบบ (กลับหน้าลงทะเบียน)
+                    </button>
+                </div>
+
+                <!-- Guest/Blocked Message Area (Visible to Guests or Blocked Users) -->
+                <div id="guest-view-section" class="bg-white p-6 rounded-xl shadow-2xl h-fit border border-gray-300 hidden">
+                    <h2 class="text-2xl font-bold mb-4 text-gray-800">โหมดผู้ชม (Guest View)</h2>
+                    <p class="text-gray-600 mb-4">คุณกำลังดูผลลัพธ์แบบเรียลไทม์ และไม่สามารถร่วมเล่นเกมได้</p>
+                    <p id="guest-block-message" class="text-center p-3 rounded-lg font-bold text-lg bg-red-100 text-red-700 hidden">
+                        <!-- Removed: Block message UI element is now unused -->
+                    </p>
+                    <button id="logout-guest-button"
+                        class="w-full mt-4 bg-gray-200 text-gray-700 p-2 rounded-lg font-semibold hover:bg-gray-300 transition duration-200 shadow-md border border-gray-400">
+                        กลับไปยังหน้าลงทะเบียน
+                    </button>
+                </div>
+            </div>
+
+            <!-- Results Section (Visible to all roles) -->
+            <div class="lg:col-span-2 bg-white p-6 rounded-xl shadow-2xl border border-gray-300">
+                <!-- MODIFIED TITLE -->
+                <h2 class="text-2xl font-bold mb-6 text-gray-800 border-b pb-3">จำนวนสมาชิกกลุ่ม (เรียลไทม์)</h2>
+                
+                <div id="results-container" class="space-y-6">
+                    <p id="loading-message" class="text-center text-gray-500">
+                        <svg class="animate-spin h-5 w-5 mr-3 inline text-orange-500" viewBox="0 0 24 24">
+                            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                        </svg>
+                        กำลังโหลดข้อมูลเกม...
+                    </p>
+                </div>
+            </div>
+        </div>
+
+    </div>
+    
+    <!-- Custom Alert Dialog (Hidden by Default) -->
+    <div id="custom-alert-modal" class="fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center p-4 z-50 hidden">
+        <div class="bg-white p-8 rounded-xl max-w-sm w-full shadow-2xl border-4 border-red-500">
+            <h3 class="text-2xl font-bold text-red-600 mb-4">🛑 คำเตือน</h3>
+            <p id="custom-alert-message" class="text-gray-700 mb-6"></p>
+            <button id="custom-alert-close-btn" class="w-full bg-red-500 text-white p-3 rounded-lg font-semibold hover:bg-red-600 transition duration-200 shadow-lg">
+                ตกลง
+            </button>
+        </div>
+    </div>
+
+
+    <!-- Firebase SDKs -->
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { 
+            getFirestore, doc, setDoc, onSnapshot, collection, query, serverTimestamp, getDoc, setLogLevel, deleteDoc, getDocs, updateDoc
+        } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+        // --- GLOBAL VARIABLES & INITIALIZATION ---
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
+        const DEFAULT_ADMIN_PASSCODE = '0000'; // New default passcode
+        // Removed: MAX_LOGIN_ATTEMPTS
+        const DEFAULT_DURATION_SECONDS = 120; // 2 นาที
+        // NEW: Base price for 1 Baht of gold (for reward calculation)
+        const DEFAULT_GOLD_PRICE = 64000; 
+
+        // Game state now uses three status: IDLE, RUNNING, PAUSED
+        let gameState = { 
+            status: 'IDLE', 
+            endTime: null, 
+            remainingTimeSeconds: DEFAULT_DURATION_SECONDS, 
+            newGameTimestamp: null,
+            currentGoldPriceBase: DEFAULT_GOLD_PRICE // NEW FIELD
+        };
+        let timerInterval = null;
+        const GROUP_LABELS = ['A', 'B', 'C', 'D', 'E']; // 5 groups
+        let hasSubmittedInitialVote = false; 
+
+        // *** ROLE STATES ***
+        let currentUserRole = 'Unknown'; // 'Admin', 'Player', 'Guest', 'Unknown'
+        let isAdmin = false; 
+        let isPlayer = false;
+        let isGuest = false;
+        let playerName = '';
+
+        // *** FIREBASE CONFIGURATION ***
+        const customFirebaseConfig = {
+            apiKey: "AIzaSyDOrTeFqzQJNtz0bR327Z7HiM3F4pjxKyA",
+            authDomain: "alice-game-b2aa5.firebaseapp.com",
+            projectId: "alice-game-b2aa5",
+            storageBucket: "alice-game-b2aa5.firebasestorage.app",
+            messagingSenderId: "70768832876",
+            appId: "1:70768832876:web:e3d908f7b1a9f1d1458349"
+        };
+        
+        const firebaseConfig = typeof __firebase_config !== 'undefined' 
+            ? JSON.parse(__firebase_config) 
+            : customFirebaseConfig; 
+        
+        const initialAuthToken = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null;
+
+
+        let db;
+        let auth;
+        let userId = null;
+        
+        // Admin Security State
+        // Removed: isUserBlocked, loginAttempts
+        let currentAdminPasscode = DEFAULT_ADMIN_PASSCODE; // Store the dynamically loaded passcode
+
+        // --- ELEMENTS ---
+        const headerSubtitle = document.getElementById('header-subtitle');
+        const landingPage = document.getElementById('landing-page');
+        const gamePage = document.getElementById('game-page');
+        
+        // Landing Page Elements
+        const adminToggleLink = document.getElementById('admin-toggle-link');
+        const landingAdminCard = document.getElementById('landing-admin-card');
+        const adminLoginForm = document.getElementById('admin-login-form');
+        const playerRegistrationForm = document.getElementById('player-registration-form');
+        const playerCardContentEl = document.getElementById('player-card-content');
+        const playerResumeContentEl = document.getElementById('player-resume-content');
+        const resumePlayerButton = document.getElementById('resume-player-button');
+        const resumeAsGuestButton = document.getElementById('resume-as-guest-button');
+        const resumedPlayerNameEl = document.getElementById('resumed-player-name');
+
+        const guestAccessButton = document.getElementById('guest-access-button');
+        const adminLoginMessageEl = document.getElementById('admin-login-message');
+        const adminPasscodeInput = document.getElementById('admin-passcode-input');
+        const playerNameInput = document.getElementById('player-name-input');
+        // Removed: blockMessageLandingEl
+        const guestAccessErrorEl = document.getElementById('guest-access-error'); 
+        
+        // Custom Alert Dialog Elements
+        const customAlertModal = document.getElementById('custom-alert-modal');
+        const customAlertMessageEl = document.getElementById('custom-alert-message');
+        const customAlertCloseBtn = document.getElementById('custom-alert-close-btn');
+
+        // Game Page Elements
+        const adminControlPanel = document.getElementById('admin-control-panel');
+        const adminPlayerListPanel = document.getElementById('admin-player-list-panel'); 
+        const adminTotalPlayersEl = document.getElementById('admin-total-players'); 
+        const adminPlayerListEl = document.getElementById('admin-player-list'); 
+        const playerInfoSection = document.getElementById('player-info-section'); 
+        const guestViewSection = document.getElementById('guest-view-section');
+        const currentPlayerNameEl = document.getElementById('current-player-name');
+        const logoutAdminButton = document.getElementById('logout-admin-button');
+        const logoutGuestButton = document.getElementById('logout-guest-button');
+        const logoutPlayerButton = document.getElementById('logout-player-button');
+        const gameVoterSummaryEl = document.getElementById('game-voter-summary');
+        const voterCountHeaderEl = document.getElementById('voter-count-header');
+        
+        // Gold Price Element
+        const goldPriceDisplayEl = document.getElementById('gold-price-display');
+        
+        // Admin Price Base Input (NEW)
+        const goldPriceBaseInput = document.getElementById('gold-price-base-input');
+        
+        // Admin Passcode Config Elements (NEW)
+        const newAdminPasscodeInput = document.getElementById('new-admin-passcode-input');
+        const updatePasscodeBtn = document.getElementById('update-passcode-btn');
+        const passcodeUpdateMessageEl = document.getElementById('passcode-update-message');
+
+
+        // Admin Control Elements 
+        const mainControlButton = document.getElementById('main-control-button');
+        const terminateButton = document.getElementById('terminate-button');
+        const timePlusBtn = document.getElementById('time-plus-btn');
+        const timeMinusBtn = document.getElementById('time-minus-btn');
+
+        const voteMessage = document.getElementById('vote-message'); 
+        const resultsContainer = document.getElementById('results-container');
+        const loadingMessage = document.getElementById('loading-message');
+        const authStatusEl = document.getElementById('auth-status');
+        const statusTextEl = document.getElementById('status-text');
+        const timerDisplayEl = document.getElementById('timer-display'); 
+        const timerValueEl = document.getElementById('timer-value'); 
+        
+        // Firestore path
+        const GAME_STATE_DOC_PATH = `artifacts/${appId}/public/data/gameState`;
+        const VOTES_COLLECTION_PATH = `artifacts/${appId}/public/data/votes`;
+        const BLOCK_STATUS_DOC_PATH = (uid) => `artifacts/${appId}/users/${uid}/status/adminBlock`;
+        const ADMIN_CONFIG_DOC_PATH = `artifacts/${appId}/public/data/adminConfig`; // NEW PATH
+
+        // Gemini API Configuration (kept for structure, but not used)
+        const GEMINI_API_URL = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent";
+        const API_KEY = ""; // Canvas will provide this if empty
+
+        // Set Firebase log level for debugging
+        setLogLevel('Debug');
+
+        // --- UTILITY FUNCTIONS ---
+
+        function showCustomAlert(message) {
+            customAlertMessageEl.textContent = message;
+            customAlertModal.classList.remove('hidden');
+        }
+
+        function hideCustomAlert() {
+            customAlertModal.classList.add('hidden');
+        }
+        
+        function formatGoldWeight(unit) {
+            if (unit === 1.00) return '1 บาท';
+            if (unit === 0.50) return '50 สตางค์';
+            if (unit === 0.25) return '25 สตางค์';
+            return '0 บาท';
+        }
+
+        function showPage(pageId) {
+            landingPage.classList.add('page-hidden');
+            gamePage.classList.add('page-hidden');
+            adminToggleLink.classList.add('hidden'); // Hide the Admin link by default
+            
+            if (pageId === 'landing') {
+                landingPage.classList.remove('page-hidden');
+                headerSubtitle.classList.remove('hidden');
+                gameVoterSummaryEl.classList.add('hidden'); // Hide game summary
+                headerSubtitle.textContent = 'โปรดระบุตัวตนเพื่อเข้าสู่ระบบเกม';
+                adminLoginMessageEl.classList.add('hidden'); 
+                guestAccessErrorEl.classList.add('hidden'); 
+                renderLandingPageUI(); 
+                
+                // Show the Admin link only on the landing page
+                adminToggleLink.classList.remove('hidden'); 
+                
+                // HIDE gold price display on landing page
+                goldPriceDisplayEl.classList.add('hidden'); 
+                
+            } else if (pageId === 'game') {
+                gamePage.classList.remove('page-hidden');
+                headerSubtitle.classList.add('hidden'); // Hide landing subtitle
+                gameVoterSummaryEl.classList.remove('hidden'); // Show game summary
+                // The Admin link remains hidden here
+
+                // SHOW gold price display on game page
+                goldPriceDisplayEl.classList.remove('hidden'); 
+            }
+        }
+        
+        function renderLandingPageUI() {
+            const storedName = sessionStorage.getItem('playerName');
+            
+            // Set default grid layout
+            landingPage.classList.remove('md:grid-cols-3');
+            landingPage.classList.add('md:grid-cols-2', 'md:max-w-xl');
+            document.getElementById('player-card').classList.add('md:col-span-1');
+            landingAdminCard.classList.add('hidden');
+            
+            if (storedName && !playerNameInput.dataset.forceRegister) {
+                // Show resume options
+                playerCardContentEl.classList.add('hidden');
+                playerResumeContentEl.classList.remove('hidden');
+                resumedPlayerNameEl.textContent = storedName;
+            } else {
+                // Show fresh registration form
+                playerCardContentEl.classList.remove('hidden');
+                playerResumeContentEl.classList.add('hidden');
+                playerNameInput.dataset.forceRegister = ''; // Clear flag
+            }
+        }
+        
+        function updateRole(role, name = '') {
+            currentUserRole = role;
+            isAdmin = role === 'Admin';
+            isPlayer = role === 'Player';
+            isGuest = role === 'Guest';
+            playerName = name;
+            
+            // Save role to sessionStorage to maintain state across soft refreshes/navigation
+            sessionStorage.setItem('currentUserRole', role);
+            if (name) sessionStorage.setItem('playerName', name);
+            
+            renderGamePageUI();
+        }
+
+        function renderGamePageUI() {
+            // Hide all role-specific elements first
+            adminControlPanel.classList.add('hidden');
+            adminPlayerListPanel.classList.add('hidden'); 
+            playerInfoSection.classList.add('hidden');
+            guestViewSection.classList.add('hidden');
+            
+            if (isAdmin) {
+                adminControlPanel.classList.remove('hidden');
+                adminPlayerListPanel.classList.remove('hidden'); 
+            } else if (isPlayer) {
+                playerInfoSection.classList.remove('hidden');
+                currentPlayerNameEl.textContent = playerName;
+            } else if (isGuest) {
+                guestViewSection.classList.remove('hidden');
+            }
+        }
+        
+        // --- FIREBASE INITIALIZATION & AUTH ---
+        try {
+            const app = initializeApp(firebaseConfig);
+            auth = getAuth(app);
+            db = getFirestore(app);
+            
+            onAuthStateChanged(auth, async (user) => {
+                if (user) {
+                    userId = user.uid;
+                    
+                    // Removed: await checkBlockStatus(userId);
+                    // Removed: isUserBlocked check
+
+                    const savedRole = sessionStorage.getItem('currentUserRole');
+                    const savedName = sessionStorage.getItem('playerName') || '';
+
+                    if (savedRole && savedRole !== 'Unknown') {
+                        updateRole(savedRole, savedName);
+                        startRealtimeListeners();
+                        showPage('game');
+                    } else {
+                        showPage('landing');
+                    }
+
+                } else {
+                    try {
+                        if (initialAuthToken) {
+                            await signInWithCustomToken(auth, initialAuthToken);
+                        } else {
+                            await signInAnonymously(auth);
+                        }
+                    } catch (error) {
+                        console.error("Authentication failed:", error);
+                        authStatusEl.textContent = "เกิดข้อผิดพลาดในการเชื่อมต่อ (Auth): " + error.message;
+                        authStatusEl.classList.remove('hidden');
+                    }
+                }
+            });
+
+        } catch (error) {
+            console.error("Firebase Initialization Error:", error);
+            authStatusEl.textContent = "เกิดข้อผิดพลาดในการเริ่มต้นแอป: " + error.message;
+            authStatusEl.classList.remove('hidden');
+        }
+
+        // --- ADMIN BLOCK LOGIC (PERSISTENCE) ---
+        // Removed: checkBlockStatus(uid)
+        // Removed: blockUser(uid)
+
+        // --- GAME STATE AND TIMER CONTROL ---
+        function startRealtimeListeners() {
+            if (!db || !userId) return;
+            
+            // NEW: Listen for Admin Config Changes (Passcode)
+            onSnapshot(doc(db, ADMIN_CONFIG_DOC_PATH, 'current'), (docSnapshot) => {
+                if (docSnapshot.exists()) {
+                    currentAdminPasscode = docSnapshot.data().passcode;
+                    // Ensure the passcode is a string for comparison
+                    if (typeof currentAdminPasscode !== 'string' || currentAdminPasscode.length !== 4) {
+                        currentAdminPasscode = DEFAULT_ADMIN_PASSCODE;
+                    }
+                } else {
+                    // Initialize the passcode if it doesn't exist
+                    setDoc(doc(db, ADMIN_CONFIG_DOC_PATH, 'current'), {
+                        passcode: DEFAULT_ADMIN_PASSCODE,
+                        lastUpdatedBy: null,
+                        timestamp: serverTimestamp()
+                    });
+                    currentAdminPasscode = DEFAULT_ADMIN_PASSCODE;
+                }
+            }, (error) => {
+                console.error("Error fetching admin config: ", error);
+            });
+
+
+            onSnapshot(doc(db, GAME_STATE_DOC_PATH, 'current'), (docSnapshot) => {
+                if (docSnapshot.exists()) {
+                    gameState = docSnapshot.data();
+                    handleGameStateChange();
+                } else {
+                    // Initialize game state if it doesn't exist
+                    if (gameState.status === 'IDLE') {
+                        setDoc(doc(db, GAME_STATE_DOC_PATH, 'current'), {
+                            status: 'IDLE', 
+                            endTime: null, 
+                            remainingTimeSeconds: DEFAULT_DURATION_SECONDS,
+                            newGameTimestamp: serverTimestamp(),
+                            currentGoldPriceBase: DEFAULT_GOLD_PRICE // Initialize NEW FIELD
+                        }, { merge: true });
+                    }
+                    handleGameStateChange();
+                }
+            }, (error) => {
+                console.error("Error fetching game state: ", error);
+            });
+
+            const votesCollectionRef = collection(db, VOTES_COLLECTION_PATH);
+            const q = query(votesCollectionRef);
+
+            onSnapshot(q, (snapshot) => {
+                loadingMessage.classList.add('hidden'); 
+                const allVotes = [];
+                // Initialized for 5 groups (0 to 4)
+                const results = { 0: [], 1: [], 2: [], 3: [], 4: [] }; 
+                let userDocFound = false; 
+                let userCurrentVote = -1;
+
+                snapshot.forEach(docSnapshot => {
+                    const data = docSnapshot.data();
+                    allVotes.push(data);
+                    
+                    // Check vote up to 4
+                    if (data.vote !== undefined && data.vote >= 0 && data.vote <= 4 && results[data.vote]) { 
+                        results[data.vote].push(data.name);
+                    }
+
+                    if (docSnapshot.id === userId && isPlayer) {
+                        userDocFound = true;
+                        userCurrentVote = data.vote;
+                    }
+                });
+
+                hasSubmittedInitialVote = userDocFound; 
+                
+                renderResults(allVotes.length, results, userCurrentVote); // Pass current vote
+                
+            }, (error) => {
+                console.error("Error fetching real-time votes: ", error);
+                resultsContainer.innerHTML = '<p class="text-red-500">ไม่สามารถโหลดผลโหวตได้: ' + error.message + '</p>';
+            });
+        }
+
+        function updateAdminControls(status) {
+            if (!isAdmin) return;
+
+            terminateButton.disabled = (status === 'IDLE');
+            timePlusBtn.disabled = (status === 'IDLE');
+            timeMinusBtn.disabled = (status === 'IDLE');
+            
+            // NEW: Enable price editing only when IDLE
+            goldPriceBaseInput.disabled = (status !== 'IDLE'); 
+
+            if (status === 'IDLE') {
+                mainControlButton.textContent = 'เริ่มต้น (ล้างผลเก่า)';
+                mainControlButton.classList.remove('bg-yellow-500', 'bg-green-500');
+                mainControlButton.classList.add('bg-orange-500');
+            } else if (status === 'RUNNING') {
+                mainControlButton.textContent = 'หยุดชั่วคราว (Pause)';
+                mainControlButton.classList.remove('bg-orange-500', 'bg-green-500');
+                mainControlButton.classList.add('bg-yellow-500');
+            } else if (status === 'PAUSED') {
+                mainControlButton.textContent = 'เล่นต่อ (Resume)';
+                mainControlButton.classList.remove('bg-orange-500', 'bg-yellow-500');
+                mainControlButton.classList.add('bg-green-500');
+            }
+            mainControlButton.disabled = false;
+        }
+
+        function formatTime(seconds) {
+            const minutes = Math.floor(seconds / 60);
+            const secs = seconds % 60;
+            return `${minutes.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+        }
+        
+        function handleGameStateChange() {
+            clearInterval(timerInterval); 
+            timerDisplayEl.classList.add('hidden'); 
+            
+            const currentTimestamp = gameState.newGameTimestamp?.toMillis();
+            const storedTimestamp = sessionStorage.getItem('latestGameTimestamp');
+            const isFreshGame = gameState.status === 'IDLE' && (currentTimestamp || 0);
+            
+            // --- NEW: Update Gold Price Display in header based on game state value ---
+            const currentGoldPrice = gameState.currentGoldPriceBase || DEFAULT_GOLD_PRICE;
+            goldPriceDisplayEl.textContent = `ราคาทองทำรูปพรรณ 1 บาท: ${currentGoldPrice.toLocaleString()} บาท`;
+
+            // NEW: Update Admin price input value based on latest gameState
+            if (isAdmin && gameState.currentGoldPriceBase) {
+                goldPriceBaseInput.value = gameState.currentGoldPriceBase;
+            }
+
+            // *** FIXED LOGIC: FORCING RE-REGISTRATION ON GAME RESET ***
+            if ((isPlayer || isGuest) && isFreshGame) {
+                if (storedTimestamp && storedTimestamp !== String(currentTimestamp)) {
+                    // Game reset detected! Force re-registration by clearing both role and name.
+                    console.log("Game reset detected. Forcing re-registration.");
+                    sessionStorage.removeItem('currentUserRole');
+                    sessionStorage.removeItem('playerName'); // CHANGED: Now removing playerName to force registration
+                    sessionStorage.removeItem('latestGameTimestamp');
+                    updateRole('Unknown');
+                    showPage('landing');
+                    return;
+                }
+                
+                // If storedTimestamp is missing (first load after registration) OR it matches,
+                // set the session timestamp now to the current one and proceed to stay on the game page.
+                sessionStorage.setItem('latestGameTimestamp', String(currentTimestamp));
+            }
+            // *** END FIXED LOGIC ***
+
+            // Update Admin Controls based on new status
+            updateAdminControls(gameState.status);
+
+            // Update UI status text
+            statusTextEl.textContent = 
+                gameState.status === 'RUNNING' ? 'สถานะ: กำลังเล่น!' :
+                gameState.status === 'PAUSED' ? 'สถานะ: หยุดชั่วคราว' :
+                'สถานะ: จบเกม / รอเริ่ม';
+            statusTextEl.className = `text-center p-3 rounded-lg font-bold text-lg ${
+                gameState.status === 'RUNNING' ? 'bg-red-100 text-red-600' :
+                gameState.status === 'PAUSED' ? 'bg-yellow-100 text-yellow-600' :
+                'bg-gray-100 text-gray-600'
+            }`;
+
+            // Handle Timer Logic
+            if (gameState.status === 'RUNNING' && gameState.endTime) {
+                const endTimeMs = gameState.endTime.toMillis ? gameState.endTime.toMillis() : new Date(gameState.endTime).getTime();
+                let remainingTimeSeconds = Math.max(0, Math.floor((endTimeMs - Date.now()) / 1000));
+
+                if (remainingTimeSeconds > 0) {
+                    timerDisplayEl.classList.remove('hidden');
+                    
+                    timerInterval = setInterval(() => {
+                        remainingTimeSeconds = Math.max(0, Math.floor((endTimeMs - Date.now()) / 1000));
+                        timerValueEl.textContent = formatTime(remainingTimeSeconds);
+                        
+                        if (remainingTimeSeconds <= 0) {
+                            clearInterval(timerInterval);
+                            terminateGame(); // Force game to IDLE
+                        }
+                    }, 1000);
+                } else {
+                    terminateGame(); // Time ran out
+                }
+            } else if (gameState.status === 'PAUSED' && gameState.remainingTimeSeconds !== undefined) {
+                // Show the remaining time when paused
+                timerDisplayEl.classList.remove('hidden');
+                timerValueEl.textContent = formatTime(gameState.remainingTimeSeconds);
+            } else if (gameState.status === 'IDLE') {
+                // Show default time or initial time when IDLE
+                timerDisplayEl.classList.remove('hidden');
+                timerValueEl.textContent = formatTime(gameState.remainingTimeSeconds || DEFAULT_DURATION_SECONDS);
+                timerDisplayEl.classList.add('hidden'); // Re-hide timer display when IDLE
+            }
+        }
+
+        // --- ADMIN ACTIONS ---
+        
+        mainControlButton.addEventListener('click', async () => {
+            if (!db || !userId || !isAdmin) return;
+
+            if (gameState.status === 'IDLE') {
+                await startGame();
+            } else if (gameState.status === 'RUNNING') {
+                await togglePause(true);
+            } else if (gameState.status === 'PAUSED') {
+                await togglePause(false);
+            }
+        });
+        
+        async function startGame() {
+            if (!db || !userId || !isAdmin) return;
+            mainControlButton.disabled = true;
+            mainControlButton.textContent = 'กำลังล้างข้อมูล...';
+            
+            // Get the current price from the Admin input field
+            const newGoldPriceBase = parseInt(goldPriceBaseInput.value) || DEFAULT_GOLD_PRICE;
+
+            try {
+                await clearPreviousGameData();
+                
+                mainControlButton.textContent = 'กำลังเริ่มเกม...';
+                const now = Date.now();
+                const endTime = new Date(now + (DEFAULT_DURATION_SECONDS * 1000));
+
+                await setDoc(doc(db, GAME_STATE_DOC_PATH, 'current'), {
+                    status: 'RUNNING',
+                    endTime: endTime,
+                    remainingTimeSeconds: DEFAULT_DURATION_SECONDS, // Initial time for the round
+                    newGameTimestamp: serverTimestamp(),
+                    adminId: userId,
+                    currentGoldPriceBase: newGoldPriceBase // NEW: Save the price base
+                });
+
+            } catch (error) {
+                console.error("Error starting game: ", error);
+                showCustomAlert("ไม่สามารถเริ่มเกมได้: " + error.message);
+            }
+        }
+        
+        async function togglePause(pauseState) {
+            if (!db || !userId || !isAdmin) return;
+            
+            if (pauseState) { 
+                const remaining = Math.max(0, Math.floor((gameState.endTime.toMillis() - Date.now()) / 1000));
+
+                await updateDoc(doc(db, GAME_STATE_DOC_PATH, 'current'), {
+                    status: 'PAUSED',
+                    remainingTimeSeconds: remaining,
+                    endTime: null
+                });
+
+            } else { 
+                const now = Date.now();
+                const newEndTime = new Date(now + (gameState.remainingTimeSeconds * 1000));
+
+                await updateDoc(doc(db, GAME_STATE_DOC_PATH, 'current'), {
+                    status: 'RUNNING',
+                    endTime: newEndTime,
+                });
+            }
+        }
+
+        terminateButton.addEventListener('click', async () => {
+            if (!db || !userId || !isAdmin) return;
+            await terminateGame();
+        });
+
+        async function terminateGame() {
+            if (!db || !userId || !isAdmin) return;
+            
+            clearInterval(timerInterval);
+
+            await setDoc(doc(db, GAME_STATE_DOC_PATH, 'current'), {
+                status: 'IDLE',
+                endTime: null,
+                remainingTimeSeconds: DEFAULT_DURATION_SECONDS,
+                activeAdminId: null 
+            }, { merge: true });
+        }
+        
+        const TIME_ADJUSTMENT = 30; // seconds
+        timePlusBtn.addEventListener('click', () => adjustTime(TIME_ADJUSTMENT));
+        timeMinusBtn.addEventListener('click', () => adjustTime(-TIME_ADJUSTMENT));
+
+        async function adjustTime(seconds) {
+            if (!db || !userId || !isAdmin || gameState.status === 'IDLE') return;
+
+            const gameStateDocRef = doc(db, GAME_STATE_DOC_PATH, 'current');
+            
+            if (gameState.status === 'RUNNING') {
+                const currentEndTimeMs = gameState.endTime.toMillis();
+                const newEndTimeMs = currentEndTimeMs + (seconds * 1000);
+
+                if (newEndTimeMs <= Date.now() && seconds < 0) {
+                     await terminateGame();
+                     return;
+                }
+                
+                await updateDoc(gameStateDocRef, {
+                    endTime: new Date(newEndTimeMs)
+                });
+
+            } else if (gameState.status === 'PAUSED') {
+                const newRemaining = Math.max(0, gameState.remainingTimeSeconds + seconds);
+
+                if (newRemaining <= 0) {
+                     await terminateGame();
+                     return;
+                }
+
+                await updateDoc(gameStateDocRef, {
+                    remainingTimeSeconds: newRemaining
+                });
+            }
+        }
+        
+        async function clearPreviousGameData() {
+            const votesRef = collection(db, VOTES_COLLECTION_PATH);
+            const snapshot = await getDocs(votesRef);
+            
+            const deletePromises = [];
+            snapshot.forEach(doc => {
+                deletePromises.push(deleteDoc(doc.ref));
+            });
+            
+            await Promise.all(deletePromises);
+            
+            const gameStateDocRef = doc(db, GAME_STATE_DOC_PATH, 'current');
+            await updateDoc(gameStateDocRef, { newGameTimestamp: serverTimestamp() }); 
+        }
+
+        // --- NEW: Group Selection and Submission ---
+        // Global scope function accessible from inline onclick
+        window.selectGroup = async function(voteValue, groupLabel) {
+            if (!isPlayer || gameState.status !== 'RUNNING') {
+                showCustomAlert(gameState.status === 'IDLE' ? 'เกมยังไม่เริ่ม! กรุณารอแอดมินเริ่มเกม' : 'เกมหยุดชั่วคราว');
+                return;
+            }
+            
+            if (!userId) {
+                voteMessage.textContent = 'กำลังเตรียมระบบ... โปรดรอสักครู่';
+                voteMessage.classList.remove('hidden');
+                voteMessage.classList.add('text-red-600');
+                return;
+            }
+
+            // Disable all buttons in the results container temporarily
+            document.querySelectorAll('.vote-group-button').forEach(btn => btn.disabled = true);
+            voteMessage.textContent = 'กำลังยืนยัน...';
+            voteMessage.classList.remove('hidden', 'text-green-600', 'text-red-600');
+
+            try {
+                const voteDocRef = doc(db, VOTES_COLLECTION_PATH, userId);
+
+                await setDoc(voteDocRef, {
+                    name: playerName,
+                    vote: voteValue,
+                    timestamp: serverTimestamp(),
+                    userId: userId 
+                }, { merge: true }); 
+
+                voteMessage.textContent = `✅ ยืนยันกลุ่ม ${groupLabel} สำเร็จ! คุณยังสามารถเปลี่ยนกลุ่มได้ตลอดเวลาที่เกมยังดำเนินอยู่`;
+                voteMessage.classList.add('text-green-600');
+                
+            } catch (error) {
+                console.error("Error submitting vote: ", error);
+                voteMessage.textContent = 'เกิดข้อผิดพลาดในการบันทึก: ' + error.message;
+                voteMessage.classList.add('text-red-600');
+            }
+            
+            // Re-enabling is handled by onSnapshot -> renderResults call
+        }
+
+        // --- UI RENDERING (Modified) ---
+        function renderResults(totalCount, results, userCurrentVote) {
+            // 1. Update the total count in the header
+            voterCountHeaderEl.textContent = totalCount;
+            
+            resultsContainer.innerHTML = ''; 
+            
+            // 2. Determine if voter names should be shown (only when IDLE/game ended OR if Admin)
+            const showNames = gameState.status === 'IDLE' || isAdmin;
+            // NEW FIX: Determine if buttons should be enabled (only when RUNNING)
+            const buttonsEnabled = isPlayer && gameState.status === 'RUNNING';
+
+
+            let voteCounts = Object.keys(results).map(vote => ({
+                number: parseInt(vote),
+                count: results[vote].length,
+                names: results[vote],
+                label: GROUP_LABELS[parseInt(vote)] // Include label for sorting
+            }));
+            
+            // 3. Populate Admin Player List Panel 
+            if (isAdmin) {
+                // Get all unique names from all groups
+                const uniquePlayers = voteCounts.flatMap(group => group.names)
+                    .filter((value, index, self) => self.indexOf(value) === index) // Get unique names
+                    .sort((a, b) => a.localeCompare(b)); // Sort alphabetically
+
+                adminTotalPlayersEl.textContent = uniquePlayers.length;
+                const playerListHtml = uniquePlayers.map(name => 
+                    `<p class="text-sm text-gray-800 border-b border-gray-100 py-1 px-1">${name}</p>`
+                ).join('');
+                adminPlayerListEl.innerHTML = playerListHtml || '<p class="text-sm italic text-gray-500">ยังไม่มีผู้เล่นลงทะเบียน</p>';
+            }
+            
+            // --- REWARD CALCULATION ---
+            
+            // 3a. Find the smallest non-zero count
+            let minCount = Infinity;
+            voteCounts.forEach(group => {
+                if (group.count > 0 && group.count < minCount) {
+                    minCount = group.count;
+                }
+            });
+            const smallestCount = minCount === Infinity ? 0 : minCount; 
+            
+            // 3b. Calculate rewards for each group
+            const goldPriceBase = gameState.currentGoldPriceBase || DEFAULT_GOLD_PRICE; // Use current base price
+
+            voteCounts.forEach(group => {
+                let goldRewardUnit = 0; // Reward in Baht (weight) unit: 1.00, 0.50, 0.25
+                
+                if (group.count > 0) {
+                    if (group.count === smallestCount) {
+                        // Rule 3: Smallest group gets 1 Baht (overrides others)
+                        goldRewardUnit = 1.00; 
+                    } else if (group.count % 2 === 0) {
+                        // Rule 1: Even count gets 0.50 Baht
+                        goldRewardUnit = 0.50;
+                    } else {
+                        // Rule 2: Odd count gets 0.25 Baht
+                        goldRewardUnit = 0.25;
+                    }
+                }
+                
+                group.goldRewardUnit = goldRewardUnit; // Store the unit
+                
+                // Calculate monetary value based on the Admin-set price
+                const monetaryTotalReward = goldRewardUnit * goldPriceBase;
+                
+                group.monetaryTotalReward = monetaryTotalReward; 
+                group.monetaryAverageReward = group.count > 0 ? (monetaryTotalReward / group.count) : 0;
+            });
+            
+            // --- END REWARD CALCULATION ---
+
+            
+            // 4. Sort results
+            voteCounts.sort((a, b) => {
+                if (b.count !== a.count) {
+                    return b.count - a.count; // Sort by count descending
+                }
+                return a.label.localeCompare(b.label); // Sort by label ascending (A-E)
+            });
+
+
+            // 5. Render group results
+            voteCounts.forEach(({ number, count, names, label, monetaryTotalReward, monetaryAverageReward, goldRewardUnit }) => {
+                const percentage = totalCount > 0 ? (count / totalCount) * 100 : 0;
+
+                // Logic for showing/hiding names
+                const namesList = names.length > 0 && showNames
+                    ? `<ul class="list-disc list-inside mt-3 ml-4 space-y-1 text-gray-700 max-h-40 overflow-y-auto">
+                           ${names.map(name => `<li class="text-sm">${name}</li>`).join('')}
+                       </ul>`
+                    : (showNames 
+                        ? '<p class="text-sm italic text-gray-500 mt-2">ยังไม่มีสมาชิกกลุ่ม</p>'
+                        : '<p class="text-sm italic text-gray-500 mt-2">รายชื่อจะแสดงหลังจบเกม</p>'
+                      );
+                
+                const voterListTitle = showNames 
+                    ? `รายชื่อสมาชิก (${names.length} คน):` 
+                    : 'รายชื่อสมาชิก: (ซ่อนระหว่างเล่น)';
+                
+                // Button visibility and disabled state (Dynamic in client side)
+                let buttonHtml = '';
+                if (isPlayer) {
+                    const isRunning = gameState.status === 'RUNNING';
+                    const isSelected = userCurrentVote === number;
+                    const buttonText = hasSubmittedInitialVote ? 
+                        (isSelected ? '✅ กลุ่มปัจจุบัน' : 'เปลี่ยนเป็นกลุ่มนี้') : 
+                        'เข้ากลุ่มนี้';
+                    
+                    // Button color logic for the HTML rendering
+                    const buttonClasses = isSelected && isRunning
+                        ? 'bg-green-600 hover:bg-green-700'
+                        : isRunning
+                            ? 'bg-orange-500 hover:bg-orange-600'
+                            : 'bg-gray-400';
+
+                    buttonHtml = `
+                        <div class="mt-4 pt-4 border-t border-gray-200 flex justify-end">
+                            <button 
+                                data-group-number="${number}"
+                                onclick="selectGroup(${number}, '${label}')"
+                                ${buttonsEnabled ? '' : 'disabled'}
+                                class="vote-group-button ${buttonClasses} text-white p-2 px-4 rounded-lg font-semibold transition duration-200 shadow-md disabled:opacity-50 disabled:cursor-not-allowed">
+                                ${buttonText}
+                            </button>
+                        </div>
+                    `;
+                }
+                
+                // Format numbers with Thai locale and fixed decimals
+                const formattedMonetaryAverageReward = monetaryAverageReward.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+                const formattedGoldWeightReward = formatGoldWeight(goldRewardUnit);
+
+
+                const resultBlock = `
+                    <div class="bg-gray-50 p-4 rounded-xl shadow-md border-l-4 border-orange-500">
+                        <div class="flex justify-between items-center mb-2">
+                            <h3 class="text-xl font-bold text-gray-800">
+                                กลุ่ม <span class="text-orange-600">${label}</span>
+                            </h3>
+                            <span class="text-3xl font-extrabold text-orange-700">${count}</span>
+                        </div>
+                        
+                        <!-- Progress Bar -->
+                        <div class="w-full bg-gray-200 rounded-full h-2.5 mb-3">
+                            <div class="bg-orange-500 h-2.5 rounded-full" style="width: ${percentage}%"></div>
+                        </div>
+                        <p class="text-sm text-gray-600 mb-2">คิดเป็น: ${percentage.toFixed(1)}%</p>
+                        
+                        <!-- Reward Details (MODIFIED: SHOWING WEIGHT) -->
+                        <div class="mt-4 pt-3 border-t border-gray-200">
+                            <h4 class="font-semibold text-yellow-700 mb-1">🎁 รางวัลที่ได้รับ:</h4>
+                            <p class="text-sm text-gray-800">
+                                รางวัลรวม: <span class="font-bold text-yellow-600">${formattedGoldWeightReward}</span>
+                            </p>
+                            <p class="text-sm text-gray-800">
+                                รางวัลเฉลี่ย/คน: <span class="font-bold text-yellow-600">${formattedMonetaryAverageReward} บาท</span>
+                            </p>
+                        </div>
+
+                        <!-- Voter List (Visibility controlled by JS/showNames) -->
+                        <div class="mt-4 pt-3 border-t border-gray-200">
+                            <h4 class="font-semibold text-gray-700">${voterListTitle}</h4>
+                            ${namesList}
+                        </div>
+                        
+                        ${buttonHtml}
+                    </div>
+                `;
+                resultsContainer.innerHTML += resultBlock;
+            });
+            
+            // 6. Explicitly ensure all buttons are enabled when RUNNING (Fixes the Resume bug)
+            if (isPlayer) {
+                const buttons = document.querySelectorAll('.vote-group-button');
+                buttons.forEach(btn => {
+                    const isSelected = parseInt(btn.dataset.groupNumber) === userCurrentVote;
+                    
+                    // Enable/Disable based on game status
+                    btn.disabled = !buttonsEnabled;
+                    
+                    // Update visual state (Color) to reflect enabled/disabled state
+                    if (buttonsEnabled) {
+                        btn.classList.remove('bg-gray-400', 'opacity-50');
+                        if (isSelected) {
+                            btn.classList.add('bg-green-600');
+                            btn.classList.remove('bg-orange-500');
+                        } else {
+                            btn.classList.add('bg-orange-500');
+                            btn.classList.remove('bg-green-600');
+                        }
+                    } else {
+                        btn.classList.add('bg-gray-400');
+                        btn.classList.remove('bg-orange-500', 'bg-green-600');
+                    }
+                });
+            }
+        }
+        
+        // --- LOGOUT HANDLER (Shared by Player and Guest) ---
+        function handlePlayerGuestLogout() {
+            sessionStorage.removeItem('currentUserRole');
+            // playerName is intentionally NOT removed here to preserve the identity for resume.
+            
+            updateRole('Unknown');
+            showPage('landing');
+        }
+
+        // --- EVENT LISTENERS (Landing Page) ---
+        
+        customAlertCloseBtn.addEventListener('click', hideCustomAlert);
+
+        adminToggleLink.addEventListener('click', () => {
+            landingAdminCard.classList.toggle('hidden');
+            if (landingAdminCard.classList.contains('hidden')) {
+                landingPage.classList.remove('md:grid-cols-3');
+                landingPage.classList.add('md:grid-cols-2', 'md:max-w-xl');
+            } else {
+                landingPage.classList.add('md:grid-cols-3');
+                landingPage.classList.remove('md:grid-cols-2', 'md:max-w-xl');
+            }
+        });
+
+        adminLoginForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            // Removed: isUserBlocked check
+            const passcode = adminPasscodeInput.value.trim();
+
+            if (passcode === currentAdminPasscode) { 
+                updateRole('Admin'); 
+                showPage('game');
+                
+                try {
+                    const gameStateDocRef = doc(db, GAME_STATE_DOC_PATH, 'current');
+                    await setDoc(gameStateDocRef, { activeAdminId: userId, currentGoldPriceBase: parseInt(goldPriceBaseInput.value) || DEFAULT_GOLD_PRICE }, { merge: true }); 
+                } catch (error) {
+                    console.error("Error setting activeAdminId: ", error);
+                }
+                
+            } else {
+                // Removed: loginAttempts tracking and blockUser call
+                adminLoginMessageEl.textContent = `❌ รหัสไม่ถูกต้อง! ลองอีกครั้ง`;
+            }
+            adminPasscodeInput.value = ''; 
+        });
+
+        // NEW: Admin Passcode Update Handler
+        updatePasscodeBtn.addEventListener('click', async () => {
+            if (!isAdmin || !db) return;
+            const newPasscode = newAdminPasscodeInput.value.trim();
+            
+            passcodeUpdateMessageEl.textContent = '';
+
+            if (newPasscode.length !== 4 || isNaN(parseInt(newPasscode))) {
+                passcodeUpdateMessageEl.textContent = 'รหัสต้องเป็นตัวเลข 4 หลักเท่านั้น';
+                passcodeUpdateMessageEl.classList.add('text-red-500');
+                return;
+            }
+            
+            updatePasscodeBtn.disabled = true;
+            passcodeUpdateMessageEl.textContent = 'กำลังบันทึก...';
+            passcodeUpdateMessageEl.classList.remove('text-red-500', 'text-green-600');
+
+
+            try {
+                const configDocRef = doc(db, ADMIN_CONFIG_DOC_PATH, 'current');
+                // FIX: Changed updateDoc to setDoc with merge: true to avoid "No document to update" error
+                await setDoc(configDocRef, { 
+                    passcode: newPasscode,
+                    lastUpdatedBy: userId,
+                    timestamp: serverTimestamp()
+                }, { merge: true });
+                
+                passcodeUpdateMessageEl.textContent = '✅ บันทึกรหัสใหม่สำเร็จ!';
+                passcodeUpdateMessageEl.classList.add('text-green-600');
+                newAdminPasscodeInput.value = '';
+                
+            } catch (error) {
+                console.error("Error updating passcode: ", error);
+                passcodeUpdateMessageEl.textContent = '❌ บันทึกรหัสไม่สำเร็จ: ' + error.message;
+                passcodeUpdateMessageEl.classList.add('text-red-500');
+            } finally {
+                updatePasscodeBtn.disabled = false;
+                setTimeout(() => passcodeUpdateMessageEl.textContent = '', 5000);
+            }
+        });
+
+        playerRegistrationForm.addEventListener('submit', (e) => {
+            e.preventDefault();
+            const name = playerNameInput.value.trim();
+            if (name) {
+                // When registering fresh, save the name and proceed
+                sessionStorage.setItem('playerName', name);
+                
+                updateRole('Player', name);
+                showPage('game');
+                startRealtimeListeners();
+            }
+        });
+        
+        resumePlayerButton.addEventListener('click', () => {
+            const storedName = sessionStorage.getItem('playerName');
+            if (storedName) {
+                updateRole('Player', storedName);
+                showPage('game');
+                startRealtimeListeners();
+            }
+        });
+        
+        // --- MODIFIED: REMOVED GAME STATE CHECK ---
+        resumeAsGuestButton.addEventListener('click', () => {
+            updateRole('Guest');
+            showPage('game');
+            startRealtimeListeners();
+        });
+        
+        // --- MODIFIED: REMOVED GAME STATE CHECK ---
+        guestAccessButton.addEventListener('click', () => {
+            updateRole('Guest');
+            showPage('game');
+            startRealtimeListeners();
+        });
+        
+        // --- EVENT LISTENERS (Game Page) ---
+
+        
+        logoutAdminButton.addEventListener('click', async () => {
+             if (isAdmin) { 
+                 try {
+                    const gameStateDocRef = doc(db, GAME_STATE_DOC_PATH, 'current');
+                    await setDoc(gameStateDocRef, { activeAdminId: null }, { merge: true }); 
+                } catch (error) {
+                    console.error("Error clearing activeAdminId on logout: ", error);
+                }
+            }
+            sessionStorage.removeItem('currentUserRole');
+            sessionStorage.removeItem('playerName'); 
+            updateRole('Unknown');
+            showPage('landing');
+        });
+
+        // Attach the shared handler to both player and guest logout buttons
+        logoutGuestButton.addEventListener('click', handlePlayerGuestLogout);
+        logoutPlayerButton.addEventListener('click', handlePlayerGuestLogout); 
+
+    </script>
+
+</body>
+</html>
