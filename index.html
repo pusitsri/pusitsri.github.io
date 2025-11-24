@@ -223,7 +223,7 @@
                 
                 <!-- NEW: Admin Player List Panel (Visible only to Admin) -->
                 <div id="admin-player-list-panel" class="bg-white p-6 rounded-xl shadow-2xl border border-gray-300 hidden">
-                    <h2 class="text-2xl font-bold mb-4 text-orange-600 border-b pb-3">
+                    <h2 class="2xl font-bold mb-4 text-orange-600 border-b pb-3">
                         รายชื่อผู้เล่นทั้งหมด (<span id="admin-total-players" class="text-gray-600">0</span> คน)
                     </h2>
                     <div id="admin-player-list" class="space-y-2 max-h-60 overflow-y-auto">
@@ -271,8 +271,9 @@
                 <!-- MODIFIED TITLE -->
                 <h2 class="text-2xl font-bold mb-6 text-gray-800 border-b pb-3">จำนวนสมาชิกกลุ่ม (เรียลไทม์)</h2>
                 
-                <div id="results-container" class="space-y-6">
-                    <p id="loading-message" class="text-center text-gray-500">
+                <!-- Updated to use Grid for distinct boxes -->
+                <div id="results-container" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                    <p id="loading-message" class="col-span-full text-center text-gray-500">
                         <svg class="animate-spin h-5 w-5 mr-3 inline text-orange-500" viewBox="0 0 24 24">
                             <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
                             <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
@@ -296,229 +297,195 @@
         </div>
     </div>
     
-    <!-- FOOTER: VERSION NUMBER (UPDATED TO 0.43) -->
+    <!-- FOOTER: VERSION NUMBER (UPDATED TO 0.64) -->
     <footer class="text-center mt-10 p-4 text-gray-600 text-xs">
-        ver 0.43
+        ver 0.64
     </footer>
 
 
-    <!-- Firebase SDKs -->
+    <!-- Firebase SDKs (De-obfuscated) -->
     <script type="module">
-        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
-        import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
-        import { 
-            getFirestore, doc, setDoc, onSnapshot, collection, query, serverTimestamp, getDoc, setLogLevel, deleteDoc, getDocs, updateDoc
-        } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+        import {initializeApp} from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import {getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged} from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import {getFirestore, doc, setDoc, onSnapshot, collection, query, serverTimestamp, setLogLevel, deleteDoc, getDocs, updateDoc} from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
-        // --- GLOBAL VARIABLES & INITIALIZATION ---
+        // Global Configuration
         const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
-        const DEFAULT_ADMIN_PASSCODE = '0000'; // New default passcode
-        const DEFAULT_DURATION_SECONDS = 120; // 2 นาที
-        // NEW: Base price for 1 Baht of gold (for reward calculation)
-        const DEFAULT_GOLD_PRICE = 64000; 
+        const DEFAULT_ADMIN_PASSCODE = '0000';
+        const DEFAULT_DURATION_SECONDS = 120;
+        const DEFAULT_GOLD_PRICE = 64000;
+        const TIME_ADJUST_SECONDS = 30;
+        const GROUP_LABELS = ['A', 'B', 'C', 'D', 'E'];
 
-        // Game state now uses three status: IDLE, RUNNING, PAUSED
-        let gameState = { 
-            status: 'IDLE', 
-            endTime: null, 
-            remainingTimeSeconds: DEFAULT_DURATION_SECONDS, 
-            newGameTimestamp: null,
-            currentGoldPriceBase: DEFAULT_GOLD_PRICE // NEW FIELD
-        };
+        // State Variables
+        let gameState = {status: 'IDLE', endTime: null, remainingTimeSeconds: DEFAULT_DURATION_SECONDS, newGameTimestamp: null, currentGoldPriceBase: DEFAULT_GOLD_PRICE};
         let timerInterval = null;
-        const GROUP_LABELS = ['A', 'B', 'C', 'D', 'E']; // 5 groups
-        let hasSubmittedInitialVote = false; 
-
-        // *** ROLE STATES ***
-        let currentUserRole = 'Unknown'; // 'Admin', 'Player', 'Guest', 'Unknown'
-        let isAdmin = false; 
+        let hasSubmittedInitialVote = false;
+        let currentUserRole = 'Unknown';
+        let isAdmin = false;
         let isPlayer = false;
         let isGuest = false;
         let playerName = '';
+        let currentAdminPasscode = DEFAULT_ADMIN_PASSCODE;
 
-        // *** FIREBASE CONFIGURATION ***
-        const customFirebaseConfig = {
-            apiKey: "AIzaSyDOrTeFqzQJNtz0bR327Z7HiM3F4pjxKyA",
-            authDomain: "alice-game-b2aa5.firebaseapp.com",
-            projectId: "alice-game-b2aa5",
-            storageBucket: "alice-game-b2aa5.firebasestorage.app",
-            messagingSenderId: "70768832876",
-            appId: "1:70768832876:web:e3d908f7b1a9f1d1458349"
-        };
-        
-        const firebaseConfig = typeof __firebase_config !== 'undefined' 
-            ? JSON.parse(__firebase_config) 
-            : customFirebaseConfig; 
-        
+        // Firebase Configuration (for external hosting)
+        const customFirebaseConfig = {apiKey:"AIzaSyDOrTeFqzQJNtz0bR327Z7HiM3F4pjxKyA",authDomain:"alice-game-b2aa5.firebaseapp.com",projectId:"alice-game-b2aa5",storageBucket:"alice-game-b2aa5.firebasestorage.app",messagingSenderId:"70768832876",appId:"1:70768832876:web:e3d908f7b1a9f1d1458349"};
+        const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : customFirebaseConfig;
         const initialAuthToken = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null;
-
-
+        
+        // Firebase Instances
         let db;
         let auth;
         let userId = null;
-        
-        // Admin Security State
-        let currentAdminPasscode = DEFAULT_ADMIN_PASSCODE; // Store the dynamically loaded passcode
 
-        // --- ELEMENTS ---
-        const headerSubtitle = document.getElementById('header-subtitle');
-        const landingPage = document.getElementById('landing-page');
-        const gamePage = document.getElementById('game-page');
-        
-        // Landing Page Elements
-        const adminToggleLink = document.getElementById('admin-toggle-link');
-        const landingAdminCard = document.getElementById('landing-admin-card');
-        const adminLoginForm = document.getElementById('admin-login-form');
-        const playerRegistrationForm = document.getElementById('player-registration-form');
+        // DOM Elements
+        const headerSubtitleEl = document.getElementById('header-subtitle');
+        const landingPageEl = document.getElementById('landing-page');
+        const gamePageEl = document.getElementById('game-page');
+        const adminToggleLinkEl = document.getElementById('admin-toggle-link');
+        const landingAdminCardEl = document.getElementById('landing-admin-card');
+        const adminLoginFormEl = document.getElementById('admin-login-form');
+        const playerRegistrationFormEl = document.getElementById('player-registration-form');
         const playerCardContentEl = document.getElementById('player-card-content');
         const playerResumeContentEl = document.getElementById('player-resume-content');
-        const resumePlayerButton = document.getElementById('resume-player-button');
-        const resumeAsGuestButton = document.getElementById('resume-as-guest-button');
+        const resumePlayerButtonEl = document.getElementById('resume-player-button');
+        const resumeAsGuestButtonEl = document.getElementById('resume-as-guest-button');
         const resumedPlayerNameEl = document.getElementById('resumed-player-name');
-
-        const guestAccessButton = document.getElementById('guest-access-button');
+        const guestAccessButtonEl = document.getElementById('guest-access-button');
         const adminLoginMessageEl = document.getElementById('admin-login-message');
-        const adminPasscodeInput = document.getElementById('admin-passcode-input');
-        const playerNameInput = document.getElementById('player-name-input');
-        const guestAccessErrorEl = document.getElementById('guest-access-error'); 
-        
-        // Custom Alert Dialog Elements
-        const customAlertModal = document.getElementById('custom-alert-modal');
+        const adminPasscodeInputEl = document.getElementById('admin-passcode-input');
+        const playerNameInputEl = document.getElementById('player-name-input');
+        const guestAccessErrorEl = document.getElementById('guest-access-error');
+        const customAlertModalEl = document.getElementById('custom-alert-modal');
         const customAlertMessageEl = document.getElementById('custom-alert-message');
-        const customAlertCloseBtn = document.getElementById('custom-alert-close-btn');
-
-        // Game Page Elements
-        const adminControlPanel = document.getElementById('admin-control-panel');
-        const adminPlayerListPanel = document.getElementById('admin-player-list-panel'); 
-        const adminTotalPlayersEl = document.getElementById('admin-total-players'); 
-        const adminPlayerListEl = document.getElementById('admin-player-list'); 
-        const playerInfoSection = document.getElementById('player-info-section'); 
-        const guestViewSection = document.getElementById('guest-view-section');
+        const customAlertCloseBtnEl = document.getElementById('custom-alert-close-btn');
+        const adminControlPanelEl = document.getElementById('admin-control-panel');
+        const adminPlayerListPanelEl = document.getElementById('admin-player-list-panel');
+        const adminTotalPlayersEl = document.getElementById('admin-total-players');
+        const adminPlayerListEl = document.getElementById('admin-player-list');
+        const playerInfoSectionEl = document.getElementById('player-info-section');
+        const guestViewSectionEl = document.getElementById('guest-view-section');
         const currentPlayerNameEl = document.getElementById('current-player-name');
-        const logoutAdminButton = document.getElementById('logout-admin-button');
-        const logoutGuestButton = document.getElementById('logout-guest-button');
-        const logoutPlayerButton = document.getElementById('logout-player-button');
+        const logoutAdminButtonEl = document.getElementById('logout-admin-button');
+        const logoutGuestButtonEl = document.getElementById('logout-guest-button');
+        const logoutPlayerButtonEl = document.getElementById('logout-player-button');
         const gameVoterSummaryEl = document.getElementById('game-voter-summary');
         const voterCountHeaderEl = document.getElementById('voter-count-header');
-        
-        // Gold Price Element
         const goldPriceDisplayEl = document.getElementById('gold-price-display');
-        
-        // Admin Price Base Input (NEW)
-        const goldPriceBaseInput = document.getElementById('gold-price-base-input');
-        
-        // Admin Passcode Config Elements (NEW)
-        const newAdminPasscodeInput = document.getElementById('new-admin-passcode-input');
-        const updatePasscodeBtn = document.getElementById('update-passcode-btn');
+        const goldPriceBaseInputEl = document.getElementById('gold-price-base-input');
+        const newAdminPasscodeInputEl = document.getElementById('new-admin-passcode-input');
+        const updatePasscodeBtnEl = document.getElementById('update-passcode-btn');
         const passcodeUpdateMessageEl = document.getElementById('passcode-update-message');
-
-
-        // Admin Control Elements 
-        const mainControlButton = document.getElementById('main-control-button');
-        const terminateButton = document.getElementById('terminate-button');
-        const timePlusBtn = document.getElementById('time-plus-btn');
-        const timeMinusBtn = document.getElementById('time-minus-btn');
-
-        const voteMessage = document.getElementById('vote-message'); 
-        const resultsContainer = document.getElementById('results-container');
-        const loadingMessage = document.getElementById('loading-message');
+        const mainControlButtonEl = document.getElementById('main-control-button');
+        const terminateButtonEl = document.getElementById('terminate-button');
+        const timePlusBtnEl = document.getElementById('time-plus-btn');
+        const timeMinusBtnEl = document.getElementById('time-minus-btn');
+        const voteMessageEl = document.getElementById('vote-message');
+        const resultsContainerEl = document.getElementById('results-container');
+        const loadingMessageEl = document.getElementById('loading-message');
         const authStatusEl = document.getElementById('auth-status');
         const statusTextEl = document.getElementById('status-text');
-        const timerDisplayEl = document.getElementById('timer-display'); 
-        const timerValueEl = document.getElementById('timer-value'); 
-        
-        // Firestore path
+        const timerDisplayEl = document.getElementById('timer-display');
+        const timerValueEl = document.getElementById('timer-value');
+
+        // Firestore Paths
         const GAME_STATE_DOC_PATH = `artifacts/${appId}/public/data/gameState`;
         const VOTES_COLLECTION_PATH = `artifacts/${appId}/public/data/votes`;
-        const ADMIN_CONFIG_DOC_PATH = `artifacts/${appId}/public/data/adminConfig`; // NEW PATH
+        const ADMIN_CONFIG_DOC_PATH = `artifacts/${appId}/public/data/adminConfig`;
 
-        // Gemini API Configuration (kept for structure, but not used)
-        const GEMINI_API_URL = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent";
-        const API_KEY = ""; // Canvas will provide this if empty
-
-        // Set Firebase log level for debugging
+        // Enable Firebase Debug Logging
         setLogLevel('Debug');
 
-        // --- UTILITY FUNCTIONS ---
+        // --- UI Functions ---
 
-        function showCustomAlert(message) {
+        function showAlert(message) {
             customAlertMessageEl.textContent = message;
-            customAlertModal.classList.remove('hidden');
+            customAlertModalEl.classList.remove('hidden');
         }
 
-        function hideCustomAlert() {
-            customAlertModal.classList.add('hidden');
+        function hideAlert() {
+            customAlertModalEl.classList.add('hidden');
         }
-        
+
+        function playClickSound() {
+            const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+            const oscillator = audioContext.createOscillator();
+            const gainNode = audioContext.createGain();
+            
+            oscillator.connect(gainNode);
+            gainNode.connect(audioContext.destination);
+            
+            oscillator.type = 'square';
+            oscillator.frequency.setValueAtTime(440, audioContext.currentTime);
+            gainNode.gain.setValueAtTime(0.3, audioContext.currentTime);
+            gainNode.gain.exponentialRampToValueAtTime(0.001, audioContext.currentTime + 0.15);
+            
+            oscillator.start();
+            oscillator.stop(audioContext.currentTime + 0.15);
+        }
+
         function formatGoldWeight(unit) {
-            if (unit === 1.00) return '1 บาท';
+            if (unit === 1) return '1 บาท';
             if (unit === 0.50) return '50 สตางค์';
             if (unit === 0.25) return '25 สตางค์';
             return '0 บาท';
         }
 
         function showPage(pageId) {
-            landingPage.classList.add('page-hidden');
-            gamePage.classList.add('page-hidden');
-            adminToggleLink.classList.add('hidden'); // Hide the Admin link by default
-            
-            if (pageId === 'landing') {
-                landingPage.classList.remove('page-hidden');
-                headerSubtitle.classList.remove('hidden');
-                gameVoterSummaryEl.classList.add('hidden'); // Hide game summary
-                headerSubtitle.textContent = 'โปรดระบุตัวตนเพื่อเข้าสู่ระบบเกม';
-                adminLoginMessageEl.classList.add('hidden'); 
-                guestAccessErrorEl.classList.add('hidden'); 
-                renderLandingPageUI(); 
-                
-                // Show the Admin link only on the landing page
-                adminToggleLink.classList.remove('hidden'); 
-                
-                // HIDE gold price display on landing page
-                goldPriceDisplayEl.classList.add('hidden'); 
-                
-            } else if (pageId === 'game') {
-                gamePage.classList.remove('page-hidden');
-                headerSubtitle.classList.add('hidden'); // Hide landing subtitle
-                gameVoterSummaryEl.classList.remove('hidden'); // Show game summary
-                // The Admin link remains hidden here
+            // Hide all pages and admin toggle link first
+            landingPageEl.classList.add('page-hidden');
+            gamePageEl.classList.add('page-hidden');
+            adminToggleLinkEl.classList.add('hidden');
 
-                // SHOW gold price display on game page
-                goldPriceDisplayEl.classList.remove('hidden'); 
+            if (pageId === 'landing') {
+                landingPageEl.classList.remove('page-hidden');
+                headerSubtitleEl.classList.remove('hidden');
+                gameVoterSummaryEl.classList.add('hidden');
+                headerSubtitleEl.textContent = 'โปรดระบุตัวตนเพื่อเข้าสู่ระบบเกม';
+                adminLoginMessageEl.classList.add('hidden');
+                guestAccessErrorEl.classList.add('hidden');
+                renderLandingPageUI();
+                // Only show admin toggle link on the landing page
+                adminToggleLinkEl.classList.remove('hidden');
+                goldPriceDisplayEl.classList.add('hidden');
+            } else { // 'game' page
+                gamePageEl.classList.remove('page-hidden');
+                headerSubtitleEl.classList.add('hidden');
+                gameVoterSummaryEl.classList.remove('hidden');
+                goldPriceDisplayEl.classList.remove('hidden');
             }
         }
-        
+
         function renderLandingPageUI() {
             const storedName = sessionStorage.getItem('playerName');
             
-            // Set default grid layout
-            landingPage.classList.remove('md:grid-cols-3');
-            landingPage.classList.add('md:grid-cols-2', 'md:max-w-xl');
+            // Reset layout for landing page (default: 2 columns wide)
+            landingPageEl.classList.remove('md:grid-cols-3');
+            landingPageEl.classList.add('md:grid-cols-2', 'md:max-w-xl');
             document.getElementById('player-card').classList.add('md:col-span-1');
-            landingAdminCard.classList.add('hidden');
+            landingAdminCardEl.classList.add('hidden'); // Ensure admin login is hidden initially
             
-            if (storedName && !playerNameInput.dataset.forceRegister) {
-                // Show resume options
+            // Check if user has a stored name and hasn't explicitly been forced to re-register
+            if (storedName && !playerNameInputEl.dataset.forceRegister) {
+                // Show Resume Content
                 playerCardContentEl.classList.add('hidden');
                 playerResumeContentEl.classList.remove('hidden');
                 resumedPlayerNameEl.textContent = storedName;
             } else {
-                // Show fresh registration form
+                // Show New Registration Content
                 playerCardContentEl.classList.remove('hidden');
-                // FIX: Corrected typo from playerResumeContentContentEl to playerResumeContentEl
                 playerResumeContentEl.classList.add('hidden');
-                playerNameInput.dataset.forceRegister = ''; // Clear flag
+                playerNameInputEl.dataset.forceRegister = ''; // Clear flag
             }
         }
-        
-        function updateRole(role, name = '') {
+
+        function updateUserRole(role, name = '') {
             currentUserRole = role;
             isAdmin = role === 'Admin';
             isPlayer = role === 'Player';
             isGuest = role === 'Guest';
             playerName = name;
             
-            // Save role to sessionStorage to maintain state across soft refreshes/navigation
             sessionStorage.setItem('currentUserRole', role);
             if (name) sessionStorage.setItem('playerName', name);
             
@@ -526,46 +493,46 @@
         }
 
         function renderGamePageUI() {
-            // Hide all role-specific elements first
-            adminControlPanel.classList.add('hidden');
-            adminPlayerListPanel.classList.add('hidden'); 
-            playerInfoSection.classList.add('hidden');
-            guestViewSection.classList.add('hidden');
-            
+            // Hide all role-specific panels first
+            adminControlPanelEl.classList.add('hidden');
+            adminPlayerListPanelEl.classList.add('hidden');
+            playerInfoSectionEl.classList.add('hidden');
+            guestViewSectionEl.classList.add('hidden');
+
             if (isAdmin) {
-                adminControlPanel.classList.remove('hidden');
-                adminPlayerListPanel.classList.remove('hidden'); 
+                adminControlPanelEl.classList.remove('hidden');
+                adminPlayerListPanelEl.classList.remove('hidden');
             } else if (isPlayer) {
-                playerInfoSection.classList.remove('hidden');
+                playerInfoSectionEl.classList.remove('hidden');
                 currentPlayerNameEl.textContent = playerName;
             } else if (isGuest) {
-                guestViewSection.classList.remove('hidden');
+                guestViewSectionEl.classList.remove('hidden');
             }
         }
-        
-        // --- FIREBASE INITIALIZATION & AUTH ---
+
+        // --- Firebase Initialization ---
+
         try {
             const app = initializeApp(firebaseConfig);
             auth = getAuth(app);
             db = getFirestore(app);
-            
+
             onAuthStateChanged(auth, async (user) => {
                 if (user) {
                     userId = user.uid;
+                    const role = sessionStorage.getItem('currentUserRole');
+                    const name = sessionStorage.getItem('playerName') || '';
                     
-                    const savedRole = sessionStorage.getItem('currentUserRole');
-                    const savedName = sessionStorage.getItem('playerName') || '';
-
-                    if (savedRole && savedRole !== 'Unknown') {
-                        updateRole(savedRole, savedName);
-                        startRealtimeListeners();
+                    if (role && role !== 'Unknown') {
+                        updateUserRole(role, name);
+                        setupRealtimeListeners();
                         showPage('game');
                     } else {
                         showPage('landing');
                     }
-
                 } else {
                     try {
+                        // Sign in anonymously if no token is available, otherwise use custom token
                         if (initialAuthToken) {
                             await signInWithCustomToken(auth, initialAuthToken);
                         } else {
@@ -578,719 +545,631 @@
                     }
                 }
             });
-
         } catch (error) {
             console.error("Firebase Initialization Error:", error);
             authStatusEl.textContent = "เกิดข้อผิดพลาดในการเริ่มต้นแอป: " + error.message;
             authStatusEl.classList.remove('hidden');
         }
 
-        // --- GAME STATE AND TIMER CONTROL ---
-        
-        // --- NEW: Automatic Group Assignment ---
+        // --- Game Logic Functions ---
+
         async function autoAssignPlayer(uid, name) {
             if (!db || !name) return;
+            const randomGroupIndex = Math.floor(Math.random() * GROUP_LABELS.length);
+            const randomGroupLabel = GROUP_LABELS[randomGroupIndex];
 
-            // Generate a random group index (0 to 4)
-            const randomVoteValue = Math.floor(Math.random() * GROUP_LABELS.length); // Random number between 0 and 4
-            const groupLabel = GROUP_LABELS[randomVoteValue];
-            
-            console.log(`Auto-assigning ${name} to Group ${groupLabel} (${randomVoteValue})`);
+            console.log(`Auto-assigning ${name} to Group ${randomGroupLabel} (${randomGroupIndex})`);
 
             try {
-                const voteDocRef = doc(db, VOTES_COLLECTION_PATH, uid);
-
-                await setDoc(voteDocRef, {
+                await setDoc(doc(db, VOTES_COLLECTION_PATH, uid), {
                     name: name,
-                    vote: randomVoteValue,
+                    vote: randomGroupIndex,
                     timestamp: serverTimestamp(),
-                    userId: uid 
-                }, { merge: true }); 
+                    userId: uid
+                }, { merge: true });
 
-                // Show a brief message that they were assigned
-                voteMessage.textContent = `✅ คุณถูกสุ่มเข้ากลุ่ม ${groupLabel} แล้ว! คุณยังสามารถเปลี่ยนกลุ่มได้`;
-                voteMessage.classList.remove('hidden', 'text-red-600');
-                voteMessage.classList.add('text-green-600');
-                
-                // Clear message after a few seconds
-                setTimeout(() => voteMessage.classList.add('hidden'), 5000);
-                
+                voteMessageEl.textContent = `✅ คุณถูกสุ่มเข้ากลุ่ม ${randomGroupLabel} แล้ว! คุณยังสามารถเปลี่ยนกลุ่มได้`;
+                voteMessageEl.classList.remove('hidden', 'text-red-600');
+                voteMessageEl.classList.add('text-green-600');
+                playClickSound();
+                setTimeout(() => voteMessageEl.classList.add('hidden'), 5000);
             } catch (error) {
                 console.error("Error auto-assigning vote: ", error);
-                voteMessage.textContent = 'เกิดข้อผิดพลาดในการสุ่มกลุ่ม: ' + error.message;
-                voteMessage.classList.add('text-red-600');
+                voteMessageEl.textContent = 'เกิดข้อผิดพลาดในการสุ่มกลุ่ม: ' + error.message;
+                voteMessageEl.classList.add('text-red-600');
             }
         }
         
-        function startRealtimeListeners() {
+        function setupRealtimeListeners() {
             if (!db || !userId) return;
-            
-            // NEW: Listen for Admin Config Changes (Passcode)
-            onSnapshot(doc(db, ADMIN_CONFIG_DOC_PATH, 'current'), (docSnapshot) => {
-                if (docSnapshot.exists()) {
-                    currentAdminPasscode = docSnapshot.data().passcode;
-                    // Ensure the passcode is a string for comparison
+
+            // 1. Admin Config Listener (Passcode)
+            onSnapshot(doc(db, ADMIN_CONFIG_DOC_PATH, 'current'), (docSnap) => {
+                if (docSnap.exists()) {
+                    currentAdminPasscode = docSnap.data().passcode;
+                    // Ensure passcode is valid, otherwise reset to default
                     if (typeof currentAdminPasscode !== 'string' || currentAdminPasscode.length !== 4) {
                         currentAdminPasscode = DEFAULT_ADMIN_PASSCODE;
                     }
                 } else {
-                    // Initialize the passcode if it doesn't exist
+                    // Create default passcode if document doesn't exist
                     setDoc(doc(db, ADMIN_CONFIG_DOC_PATH, 'current'), {
                         passcode: DEFAULT_ADMIN_PASSCODE,
                         lastUpdatedBy: null,
                         timestamp: serverTimestamp()
-                    });
+                    }, { merge: true });
                     currentAdminPasscode = DEFAULT_ADMIN_PASSCODE;
                 }
             }, (error) => {
                 console.error("Error fetching admin config: ", error);
             });
 
-
-            onSnapshot(doc(db, GAME_STATE_DOC_PATH, 'current'), (docSnapshot) => {
-                if (docSnapshot.exists()) {
-                    gameState = docSnapshot.data();
+            // 2. Game State Listener
+            onSnapshot(doc(db, GAME_STATE_DOC_PATH, 'current'), (docSnap) => {
+                if (docSnap.exists()) {
+                    gameState = docSnap.data();
                     handleGameStateChange();
-                } else {
-                    // Initialize game state if it doesn't exist
-                    if (gameState.status === 'IDLE') {
-                        setDoc(doc(db, GAME_STATE_DOC_PATH, 'current'), {
-                            status: 'IDLE', 
-                            endTime: null, 
-                            remainingTimeSeconds: DEFAULT_DURATION_SECONDS,
-                            newGameTimestamp: serverTimestamp(),
-                            currentGoldPriceBase: DEFAULT_GOLD_PRICE // Initialize NEW FIELD
-                        }, { merge: true });
-                    }
-                    handleGameStateChange();
+                } else if (gameState.status === 'IDLE') {
+                    // Ensure game state document exists if it should be IDLE
+                    setDoc(doc(db, GAME_STATE_DOC_PATH, 'current'), {
+                        status: 'IDLE',
+                        endTime: null,
+                        remainingTimeSeconds: DEFAULT_DURATION_SECONDS,
+                        newGameTimestamp: serverTimestamp(),
+                        currentGoldPriceBase: DEFAULT_GOLD_PRICE
+                    }, { merge: true });
                 }
+                handleGameStateChange();
             }, (error) => {
                 console.error("Error fetching game state: ", error);
             });
 
-            const votesCollectionRef = collection(db, VOTES_COLLECTION_PATH);
-            const q = query(votesCollectionRef);
-
-            onSnapshot(q, (snapshot) => {
-                loadingMessage.classList.add('hidden'); 
+            // 3. Votes Listener (Main Data)
+            const votesCollection = collection(db, VOTES_COLLECTION_PATH);
+            const votesQuery = query(votesCollection);
+            onSnapshot(votesQuery, (querySnapshot) => {
+                loadingMessageEl.classList.add('hidden');
+                
                 const allVotes = [];
-                // Initialized for 5 groups (0 to 4)
-                const results = { 0: [], 1: [], 2: [], 3: [], 4: [] }; 
-                let userDocFound = false; 
-                let userCurrentVote = -1;
+                const groupedVotes = {0: [], 1: [], 2: [], 3: [], 4: []};
+                let playerHasVoted = false;
+                let playerCurrentVote = -1;
 
-                snapshot.forEach(docSnapshot => {
-                    const data = docSnapshot.data();
+                querySnapshot.forEach(docSnap => {
+                    const data = docSnap.data();
                     allVotes.push(data);
                     
-                    // Check vote up to 4
-                    if (data.vote !== undefined && data.vote >= 0 && data.vote <= 4 && results[data.vote]) { 
-                        results[data.vote].push(data.name);
+                    // Group votes by group index (0-4)
+                    if (data.vote !== undefined && data.vote >= 0 && data.vote <= 4 && groupedVotes[data.vote]) {
+                        groupedVotes[data.vote].push(data.name);
                     }
 
-                    if (docSnapshot.id === userId && isPlayer) {
-                        userDocFound = true;
-                        userCurrentVote = data.vote;
+                    // Check player's status
+                    if (docSnap.id === userId && isPlayer) {
+                        playerHasVoted = true;
+                        playerCurrentVote = data.vote;
                     }
                 });
-
-                // *** NEW LOGIC: AUTO-ASSIGN PLAYER ON FIRST ENTRY WHEN GAME IS RUNNING ***
-                if (isPlayer && gameState.status === 'RUNNING' && !userDocFound) {
+                
+                // Auto-assign player if registered but hasn't voted yet and game is running
+                if (isPlayer && gameState.status === 'RUNNING' && !playerHasVoted) {
                     console.log("Player registered and game is running. Auto-assigning group...");
                     autoAssignPlayer(userId, playerName);
                 }
-                // *** END NEW LOGIC ***
-
-
-                hasSubmittedInitialVote = userDocFound; 
                 
-                renderResults(allVotes.length, results, userCurrentVote); // Pass current vote
-                
+                hasSubmittedInitialVote = playerHasVoted;
+                renderResultsAndAdminList(allVotes.length, groupedVotes, playerCurrentVote);
             }, (error) => {
                 console.error("Error fetching real-time votes: ", error);
-                resultsContainer.innerHTML = '<p class="text-red-500">ไม่สามารถโหลดผลโหวตได้: ' + error.message + '</p>';
+                resultsContainerEl.innerHTML = '<p class="text-red-500">ไม่สามารถโหลดผลโหวตได้: ' + error.message + '</p>';
             });
         }
 
         function updateAdminControls(status) {
             if (!isAdmin) return;
-
-            terminateButton.disabled = (status === 'IDLE');
-            timePlusBtn.disabled = (status === 'IDLE');
-            timeMinusBtn.disabled = (status === 'IDLE');
             
-            // NEW: Enable price editing only when IDLE
-            goldPriceBaseInput.disabled = (status !== 'IDLE'); 
+            terminateButtonEl.disabled = (status === 'IDLE');
+            timePlusBtnEl.disabled = (status === 'IDLE');
+            timeMinusBtnEl.disabled = (status === 'IDLE');
+            goldPriceBaseInputEl.disabled = (status !== 'IDLE'); // Only editable when IDLE
 
             if (status === 'IDLE') {
-                mainControlButton.textContent = 'เริ่มต้น (ล้างผลเก่า)';
-                mainControlButton.classList.remove('bg-yellow-500', 'bg-green-500');
-                mainControlButton.classList.add('bg-orange-500');
+                mainControlButtonEl.textContent = 'เริ่มต้น (ล้างผลเก่า)';
+                mainControlButtonEl.classList.remove('bg-yellow-500', 'bg-green-500');
+                mainControlButtonEl.classList.add('bg-orange-500');
             } else if (status === 'RUNNING') {
-                mainControlButton.textContent = 'หยุดชั่วคราว (Pause)';
-                mainControlButton.classList.remove('bg-orange-500', 'bg-green-500');
-                mainControlButton.classList.add('bg-yellow-500');
+                mainControlButtonEl.textContent = 'หยุดชั่วคราว (Pause)';
+                mainControlButtonEl.classList.remove('bg-orange-500', 'bg-green-500');
+                mainControlButtonEl.classList.add('bg-yellow-500');
             } else if (status === 'PAUSED') {
-                mainControlButton.textContent = 'เล่นต่อ (Resume)';
-                mainControlButton.classList.remove('bg-orange-500', 'bg-yellow-500');
-                mainControlButton.classList.add('bg-green-500');
+                mainControlButtonEl.textContent = 'เล่นต่อ (Resume)';
+                mainControlButtonEl.classList.remove('bg-orange-500', 'bg-yellow-500');
+                mainControlButtonEl.classList.add('bg-green-500');
             }
-            mainControlButton.disabled = false;
+            mainControlButtonEl.disabled = false;
         }
 
         function formatTime(seconds) {
             const minutes = Math.floor(seconds / 60);
-            const secs = seconds % 60;
-            return `${minutes.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+            const remainingSeconds = seconds % 60;
+            return `${minutes.toString().padStart(2, '0')}:${remainingSeconds.toString().padStart(2, '0')}`;
         }
-        
+
         function handleGameStateChange() {
-            clearInterval(timerInterval); 
-            timerDisplayEl.classList.add('hidden'); 
+            clearInterval(timerInterval);
+            timerDisplayEl.classList.add('hidden');
             
-            const currentTimestamp = gameState.newGameTimestamp?.toMillis();
-            const storedTimestamp = sessionStorage.getItem('latestGameTimestamp');
-            const isFreshGame = gameState.status === 'IDLE' && (currentTimestamp || 0);
+            const newGameTimestamp = gameState.newGameTimestamp?.toMillis();
+            const latestGameTimestamp = sessionStorage.getItem('latestGameTimestamp');
             
-            // --- NEW: Update Gold Price Display in header based on game state value ---
-            const currentGoldPrice = gameState.currentGoldPriceBase || DEFAULT_GOLD_PRICE;
-            goldPriceDisplayEl.textContent = `ราคาทองทำรูปพรรณ 1 บาท: ${currentGoldPrice.toLocaleString()} บาท`;
+            // Logic to force re-registration when a new game starts
+            const isGameNew = gameState.status === 'IDLE' && (newGameTimestamp || 0);
 
-            // NEW: Update Admin price input value based on latest gameState
+            const goldPriceBase = gameState.currentGoldPriceBase || DEFAULT_GOLD_PRICE;
+            goldPriceDisplayEl.textContent = `ราคาทองทำรูปพรรณ 1 บาท: ${goldPriceBase.toLocaleString()} บาท`;
+            
+            // Update Admin Gold Price Input
             if (isAdmin && gameState.currentGoldPriceBase) {
-                goldPriceBaseInput.value = gameState.currentGoldPriceBase;
+                goldPriceBaseInputEl.value = gameState.currentGoldPriceBase;
             }
 
-            // *** FIXED LOGIC: FORCING RE-REGISTRATION ON GAME RESET ***
-            if ((isPlayer || isGuest) && isFreshGame) {
-                if (storedTimestamp && storedTimestamp !== String(currentTimestamp)) {
-                    // Game reset detected! Force re-registration by clearing both role and name.
-                    console.log("Game reset detected. Forcing re-registration.");
-                    sessionStorage.removeItem('currentUserRole');
-                    sessionStorage.removeItem('playerName'); // CHANGED: Now removing playerName to force registration
-                    sessionStorage.removeItem('latestGameTimestamp');
-                    updateRole('Unknown');
-                    showPage('landing');
-                    return;
+            // Player/Guest re-registration check
+            if (isPlayer || isGuest) {
+                if (isGameNew) {
+                    if (latestGameTimestamp && latestGameTimestamp !== String(newGameTimestamp)) {
+                        console.log("Game reset detected. Forcing re-registration.");
+                        sessionStorage.removeItem('currentUserRole');
+                        sessionStorage.removeItem('playerName');
+                        sessionStorage.removeItem('latestGameTimestamp');
+                        updateUserRole('Unknown');
+                        showPage('landing');
+                        return;
+                    }
+                    // For the first time accessing a game in IDLE state, save the timestamp
+                    sessionStorage.setItem('latestGameTimestamp', String(newGameTimestamp));
                 }
-                
-                // If storedTimestamp is missing (first load after registration) OR it matches,
-                // set the session timestamp now to the current one and proceed to stay on the game page.
-                sessionStorage.setItem('latestGameTimestamp', String(currentTimestamp));
             }
-            // *** END FIXED LOGIC ***
-
-            // Update Admin Controls based on new status
+            
             updateAdminControls(gameState.status);
 
-            // Update UI status text
-            statusTextEl.textContent = 
-                gameState.status === 'RUNNING' ? 'สถานะ: กำลังเล่น!' :
-                gameState.status === 'PAUSED' ? 'สถานะ: หยุดชั่วคราว' :
-                'สถานะ: จบเกม / รอเริ่ม';
+            // Update Status Text
+            statusTextEl.textContent = gameState.status === 'RUNNING' ? 'สถานะ: กำลังเล่น!' :
+                                     gameState.status === 'PAUSED' ? 'สถานะ: หยุดชั่วคราว' :
+                                     'สถานะ: จบเกม / รอเริ่ม';
             statusTextEl.className = `text-center p-3 rounded-lg font-bold text-lg ${
                 gameState.status === 'RUNNING' ? 'bg-red-100 text-red-600' :
                 gameState.status === 'PAUSED' ? 'bg-yellow-100 text-yellow-600' :
                 'bg-gray-100 text-gray-600'
             }`;
 
-            // Handle Timer Logic
+            // Timer Logic
             if (gameState.status === 'RUNNING' && gameState.endTime) {
-                const endTimeMs = gameState.endTime.toMillis ? gameState.endTime.toMillis() : new Date(gameState.endTime).getTime();
-                let remainingTimeSeconds = Math.max(0, Math.floor((endTimeMs - Date.now()) / 1000));
-
-                if (remainingTimeSeconds > 0) {
-                    timerDisplayEl.classList.remove('hidden');
-                    
-                    timerInterval = setInterval(() => {
-                        remainingTimeSeconds = Math.max(0, Math.floor((endTimeMs - Date.now()) / 1000));
-                        timerValueEl.textContent = formatTime(remainingTimeSeconds);
-                        
-                        if (remainingTimeSeconds <= 0) {
-                            clearInterval(timerInterval);
-                            terminateGame(); // Force game to IDLE
-                        }
-                    }, 1000);
-                } else {
-                    terminateGame(); // Time ran out
-                }
+                timerDisplayEl.classList.remove('hidden');
+                timerInterval = setInterval(() => {
+                    let timeRemaining = Math.max(0, Math.floor(((gameState.endTime.toMillis ? gameState.endTime.toMillis() : new Date(gameState.endTime).getTime()) - Date.now()) / 1000));
+                    timerValueEl.textContent = formatTime(timeRemaining);
+                    if (timeRemaining <= 0) {
+                        clearInterval(timerInterval);
+                        terminateGame(); // Terminate if time runs out
+                    }
+                }, 1000);
             } else if (gameState.status === 'PAUSED' && gameState.remainingTimeSeconds !== undefined) {
-                // Show the remaining time when paused
                 timerDisplayEl.classList.remove('hidden');
                 timerValueEl.textContent = formatTime(gameState.remainingTimeSeconds);
             } else if (gameState.status === 'IDLE') {
-                // Show default time or initial time when IDLE
                 timerDisplayEl.classList.remove('hidden');
-                timerValueEl.textContent = formatTime(gameState.remainingTimeSeconds || DEFAULT_DURATION_SECONDS);
-                timerDisplayEl.classList.add('hidden'); // Re-hide timer display when IDLE
+                timerValueEl.classList.add('hidden'); // Hide time value when IDLE
             }
         }
-
-        // --- ADMIN ACTIONS ---
         
-        mainControlButton.addEventListener('click', async () => {
+        // --- Admin Actions ---
+        
+        mainControlButtonEl.addEventListener('click', async () => {
             if (!db || !userId || !isAdmin) return;
-
+            
             if (gameState.status === 'IDLE') {
                 await startGame();
             } else if (gameState.status === 'RUNNING') {
-                await togglePause(true);
+                await togglePause(true); // Pause
             } else if (gameState.status === 'PAUSED') {
-                await togglePause(false);
+                await togglePause(false); // Resume
             }
         });
-        
+
         async function startGame() {
             if (!db || !userId || !isAdmin) return;
-            mainControlButton.disabled = true;
-            mainControlButton.textContent = 'กำลังล้างข้อมูล...';
+            mainControlButtonEl.disabled = true;
+            mainControlButtonEl.textContent = 'กำลังล้างข้อมูล...';
             
-            // Get the current price from the Admin input field
-            const newGoldPriceBase = parseInt(goldPriceBaseInput.value) || DEFAULT_GOLD_PRICE;
+            const newPriceBase = parseInt(goldPriceBaseInputEl.value) || DEFAULT_GOLD_PRICE;
 
             try {
-                await clearPreviousGameData();
+                // 1. Clear previous votes and trigger player re-registration
+                await clearPlayerGameData();
                 
-                mainControlButton.textContent = 'กำลังเริ่มเกม...';
-                const now = Date.now();
-                const endTime = new Date(now + (DEFAULT_DURATION_SECONDS * 1000));
+                mainControlButtonEl.textContent = 'กำลังเริ่มเกม...';
 
+                // 2. Set new game state
+                const startTime = Date.now();
+                const endTime = new Date(startTime + (1000 * DEFAULT_DURATION_SECONDS));
+                
                 await setDoc(doc(db, GAME_STATE_DOC_PATH, 'current'), {
                     status: 'RUNNING',
                     endTime: endTime,
-                    remainingTimeSeconds: DEFAULT_DURATION_SECONDS, // Initial time for the round
+                    remainingTimeSeconds: DEFAULT_DURATION_SECONDS,
                     newGameTimestamp: serverTimestamp(),
                     adminId: userId,
-                    currentGoldPriceBase: newGoldPriceBase // NEW: Save the price base
+                    currentGoldPriceBase: newPriceBase
                 });
-
             } catch (error) {
                 console.error("Error starting game: ", error);
-                showCustomAlert("ไม่สามารถเริ่มเกมได้: " + error.message);
+                showAlert("ไม่สามารถเริ่มเกมได้: " + error.message);
             }
         }
-        
-        async function togglePause(pauseState) {
-            if (!db || !userId || !isAdmin) return;
-            
-            if (pauseState) { 
-                const remaining = Math.max(0, Math.floor((gameState.endTime.toMillis() - Date.now()) / 1000));
 
+        async function togglePause(isPausing) {
+            if (!db || !userId || !isAdmin) return;
+
+            if (isPausing) {
+                // Calculate remaining time before pausing
+                const timeRemaining = Math.max(0, Math.floor(((gameState.endTime.toMillis()) - Date.now()) / 1000));
                 await updateDoc(doc(db, GAME_STATE_DOC_PATH, 'current'), {
                     status: 'PAUSED',
-                    remainingTimeSeconds: remaining,
+                    remainingTimeSeconds: timeRemaining,
                     endTime: null
                 });
-
-            } else { 
-                const now = Date.now();
-                const newEndTime = new Date(now + (gameState.remainingTimeSeconds * 1000));
-
+            } else {
+                // Resume game
+                const startTime = Date.now();
+                const endTime = new Date(startTime + (1000 * gameState.remainingTimeSeconds));
                 await updateDoc(doc(db, GAME_STATE_DOC_PATH, 'current'), {
                     status: 'RUNNING',
-                    endTime: newEndTime,
+                    endTime: endTime
                 });
             }
         }
 
-        terminateButton.addEventListener('click', async () => {
+        terminateButtonEl.addEventListener('click', async () => {
             if (!db || !userId || !isAdmin) return;
             await terminateGame();
         });
 
         async function terminateGame() {
             if (!db || !userId || !isAdmin) return;
-            
             clearInterval(timerInterval);
-
             await setDoc(doc(db, GAME_STATE_DOC_PATH, 'current'), {
                 status: 'IDLE',
                 endTime: null,
                 remainingTimeSeconds: DEFAULT_DURATION_SECONDS,
-                activeAdminId: null 
+                activeAdminId: null
             }, { merge: true });
         }
-        
-        const TIME_ADJUSTMENT = 30; // seconds
-        timePlusBtn.addEventListener('click', () => adjustTime(TIME_ADJUSTMENT));
-        timeMinusBtn.addEventListener('click', () => adjustTime(-TIME_ADJUSTMENT));
+
+        timePlusBtnEl.addEventListener('click', () => adjustTime(TIME_ADJUST_SECONDS));
+        timeMinusBtnEl.addEventListener('click', () => adjustTime(-TIME_ADJUST_SECONDS));
 
         async function adjustTime(seconds) {
             if (!db || !userId || !isAdmin || gameState.status === 'IDLE') return;
 
-            const gameStateDocRef = doc(db, GAME_STATE_DOC_PATH, 'current');
-            
+            const gameStateRef = doc(db, GAME_STATE_DOC_PATH, 'current');
+
             if (gameState.status === 'RUNNING') {
                 const currentEndTimeMs = gameState.endTime.toMillis();
-                const newEndTimeMs = currentEndTimeMs + (seconds * 1000);
+                const newEndTimeMs = currentEndTimeMs + (1000 * seconds);
 
                 if (newEndTimeMs <= Date.now() && seconds < 0) {
-                     await terminateGame();
-                     return;
+                    await terminateGame(); // End game if time runs out
+                    return;
                 }
-                
-                await updateDoc(gameStateDocRef, {
-                    endTime: new Date(newEndTimeMs)
-                });
+                await updateDoc(gameStateRef, { endTime: new Date(newEndTimeMs) });
 
             } else if (gameState.status === 'PAUSED') {
-                const newRemaining = Math.max(0, gameState.remainingTimeSeconds + seconds);
-
-                if (newRemaining <= 0) {
-                     await terminateGame();
-                     return;
+                const newTimeRemaining = Math.max(0, gameState.remainingTimeSeconds + seconds);
+                
+                if (newTimeRemaining <= 0) {
+                    await terminateGame(); // End game if time runs out
+                    return;
                 }
-
-                await updateDoc(gameStateDocRef, {
-                    remainingTimeSeconds: newRemaining
-                });
+                await updateDoc(gameStateRef, { remainingTimeSeconds: newTimeRemaining });
             }
         }
         
-        async function clearPreviousGameData() {
-            const votesRef = collection(db, VOTES_COLLECTION_PATH);
-            const snapshot = await getDocs(votesRef);
-            
+        async function clearPlayerGameData() {
+            // 1. Clear all documents in the 'votes' collection
+            const votesCollection = collection(db, VOTES_COLLECTION_PATH);
+            const snapshot = await getDocs(votesCollection);
             const deletePromises = [];
-            snapshot.forEach(doc => {
-                deletePromises.push(deleteDoc(doc.ref));
+            snapshot.forEach(docSnap => {
+                deletePromises.push(deleteDoc(docSnap.ref));
             });
-            
             await Promise.all(deletePromises);
-            
-            const gameStateDocRef = doc(db, GAME_STATE_DOC_PATH, 'current');
-            await updateDoc(gameStateDocRef, { newGameTimestamp: serverTimestamp() }); 
+
+            // 2. Update newGameTimestamp to trigger player re-registration on clients
+            await updateDoc(doc(db, GAME_STATE_DOC_PATH, 'current'), { newGameTimestamp: serverTimestamp() });
         }
 
-        // --- NEW: Group Selection and Submission ---
-        // Global scope function accessible from inline onclick
-        window.selectGroup = async function(voteValue, groupLabel) {
+        // --- Player Actions ---
+
+        window.selectGroup = async function(groupIndex, groupLabel) {
             if (!isPlayer || gameState.status !== 'RUNNING') {
-                showCustomAlert(gameState.status === 'IDLE' ? 'เกมยังไม่เริ่ม! กรุณารอแอดมินเริ่มเกม' : 'เกมหยุดชั่วคราว');
-                return;
+                return showAlert(gameState.status === 'IDLE' ? 'เกมยังไม่เริ่ม! กรุณารอแอดมินเริ่มเกม' : 'เกมหยุดชั่วคราว');
             }
-            
             if (!userId) {
-                voteMessage.textContent = 'กำลังเตรียมระบบ... โปรดรอสักครู่';
-                voteMessage.classList.remove('hidden');
-                voteMessage.classList.add('text-red-600');
-                return;
+                return voteMessageEl.textContent = 'กำลังเตรียมระบบ... โปรดรอสักครู่', 
+                    voteMessageEl.classList.remove('hidden', 'text-green-600'), 
+                    voteMessageEl.classList.add('text-red-600'), 
+                    false;
             }
 
-            // Disable all buttons in the results container temporarily
-            document.querySelectorAll('.vote-group-button').forEach(btn => btn.disabled = true);
-            voteMessage.textContent = 'กำลังยืนยัน...';
-            voteMessage.classList.remove('hidden', 'text-green-600', 'text-red-600');
-
+            voteMessageEl.textContent = 'กำลังยืนยัน...';
+            voteMessageEl.classList.remove('hidden', 'text-green-600', 'text-red-600');
+            
             try {
-                const voteDocRef = doc(db, VOTES_COLLECTION_PATH, userId);
-
-                await setDoc(voteDocRef, {
+                await setDoc(doc(db, VOTES_COLLECTION_PATH, userId), {
                     name: playerName,
-                    vote: voteValue,
+                    vote: groupIndex,
                     timestamp: serverTimestamp(),
-                    userId: userId 
-                }, { merge: true }); 
+                    userId: userId
+                }, { merge: true });
 
-                voteMessage.textContent = `✅ ยืนยันกลุ่ม ${groupLabel} สำเร็จ! คุณยังสามารถเปลี่ยนกลุ่มได้ตลอดเวลาที่เกมยังดำเนินอยู่`;
-                voteMessage.classList.add('text-green-600');
-                
+                playClickSound();
+                voteMessageEl.textContent = `✅ ยืนยันกลุ่ม ${groupLabel} สำเร็จ! คุณยังสามารถเปลี่ยนกลุ่มได้ตลอดเวลาที่เกมยังดำเนินอยู่`;
+                voteMessageEl.classList.add('text-green-600');
             } catch (error) {
                 console.error("Error submitting vote: ", error);
-                voteMessage.textContent = 'เกิดข้อผิดพลาดในการบันทึก: ' + error.message;
-                voteMessage.classList.add('text-red-600');
+                voteMessageEl.textContent = 'เกิดข้อผิดพลาดในการบันทึก: ' + error.message;
+                voteMessageEl.classList.add('text-red-600');
             }
-            
-            // Re-enabling is handled by onSnapshot -> renderResults call
-        }
-
-        // --- UI RENDERING (Modified) ---
-        function renderResults(totalCount, results, userCurrentVote) {
-            // 1. Update the total count in the header
-            voterCountHeaderEl.textContent = totalCount;
-            
-            resultsContainer.innerHTML = ''; 
-            
-            // 2. Determine if voter names should be shown (only when IDLE/game ended OR if Admin)
-            const showNames = gameState.status === 'IDLE' || isAdmin;
-            // NEW FIX: Determine if buttons should be enabled (only when RUNNING)
-            const buttonsEnabled = isPlayer && gameState.status === 'RUNNING';
+        };
 
 
-            let voteCounts = Object.keys(results).map(vote => ({
-                number: parseInt(vote),
-                count: results[vote].length,
-                names: results[vote],
-                label: GROUP_LABELS[parseInt(vote)] // Include label for sorting
+        // --- Render Results ---
+
+        function renderResultsAndAdminList(totalPlayers, groupedVotes, playerVoteIndex) {
+            voterCountHeaderEl.textContent = totalPlayers;
+            resultsContainerEl.innerHTML = '';
+            
+            // Should display names and detailed info if game is IDLE (finished) OR if the user is Admin
+            const showNamesAndDetails = gameState.status === 'IDLE' || isAdmin;
+            
+            // 1. Prepare data structure
+            let groupData = Object.keys(groupedVotes).map(index => ({
+                number: parseInt(index),
+                count: groupedVotes[index].length,
+                names: groupedVotes[index],
+                label: GROUP_LABELS[parseInt(index)]
             }));
-            
-            // 3. Populate Admin Player List Panel 
-            if (isAdmin) {
-                // Get all unique names from all groups
-                const uniquePlayers = voteCounts.flatMap(group => group.names)
-                    .filter((value, index, self) => self.indexOf(value) === index) // Get unique names
-                    .sort((a, b) => a.localeCompare(b)); // Sort alphabetically
 
+            // 2. Update Admin Player List (Unobtrusive)
+            if (isAdmin) {
+                const uniquePlayers = groupData.flatMap(g => g.names).filter((name, index, self) => self.indexOf(name) === index).sort((a, b) => a.localeCompare(b));
                 adminTotalPlayersEl.textContent = uniquePlayers.length;
-                const playerListHtml = uniquePlayers.map(name => 
-                    `<p class="text-sm text-gray-800 border-b border-gray-100 py-1 px-1">${name}</p>`
-                ).join('');
-                adminPlayerListEl.innerHTML = playerListHtml || '<p class="text-sm italic text-gray-500">ยังไม่มีผู้เล่นลงทะเบียน</p>';
+                adminPlayerListEl.innerHTML = uniquePlayers.map(name => `<p class="text-sm text-gray-800 border-b border-gray-100 py-1 px-1">${name}</p>`).join('') || '<p class="text-sm italic text-gray-500">ยังไม่มีผู้เล่นลงทะเบียน</p>';
             }
-            
-            // --- REWARD CALCULATION (MODIFIED LOGIC) ---
-            
-            // 3a. Find the smallest non-zero count AND count how many groups share it
+
+            // 3. Calculate Rewards (Complex Logic)
             let minCount = Infinity;
-            
-            // First pass: Find the absolute minimum count (> 0)
-            voteCounts.forEach(group => {
-                if (group.count > 0 && group.count < minCount) {
-                    minCount = group.count;
+            groupData.forEach(g => {
+                if (g.count > 0 && g.count < minCount) {
+                    minCount = g.count;
                 }
             });
+            const minCountIfAny = minCount === Infinity ? 0 : minCount;
 
-            const smallestCount = minCount === Infinity ? 0 : minCount;
-            
-            // Second pass: Count how many groups share the smallest non-zero count
-            let countOfSmallest = 0;
-            if (smallestCount > 0) {
-                voteCounts.forEach(group => {
-                    if (group.count === smallestCount) {
-                        countOfSmallest++;
+            let countOfMinGroups = 0;
+            if (minCountIfAny > 0) {
+                groupData.forEach(g => {
+                    if (g.count === minCountIfAny) {
+                        countOfMinGroups++;
                     }
                 });
             }
-            
-            // New Rule 3 Check: Only proceed with 1 Baht prize if exactly ONE group has the minimum non-zero count
-            const isUniqueSmallest = smallestCount > 0 && countOfSmallest === 1;
+            const isSingleMinimumGroup = minCountIfAny > 0 && countOfMinGroups === 1;
+            const goldPriceBase = gameState.currentGoldPriceBase || DEFAULT_GOLD_PRICE;
 
-            // 3b. Calculate rewards for each group
-            const goldPriceBase = gameState.currentGoldPriceBase || DEFAULT_GOLD_PRICE; 
-
-            voteCounts.forEach(group => {
-                let goldRewardUnit = 0; // Reward in Baht (weight) unit: 1.00, 0.50, 0.25
+            groupData.forEach(g => {
+                let goldRewardUnit = 0;
                 
-                if (group.count > 0) {
-                    
-                    // *** MODIFIED RULE 3 CHECK ***
-                    if (group.count === smallestCount && isUniqueSmallest) {
-                        // New Rule 3: Only the single smallest non-zero group gets 1 Baht
-                        goldRewardUnit = 1.00; 
-                    } else if (group.count % 2 === 0) {
-                        // Rule 1: Even count gets 0.50 Baht (Fallback from Rule 3)
-                        goldRewardUnit = 0.50;
+                if (g.count > 0) {
+                    if (g.count === minCountIfAny && isSingleMinimumGroup) {
+                        goldRewardUnit = 1; // 1 บาท (Golden Opportunity - Single Minimum)
+                    } else if (g.count % 2 === 0) {
+                        goldRewardUnit = 0.50; // 50 สตางค์ (Even Count)
                     } else {
-                        // Rule 2: Odd count gets 0.25 Baht (Fallback from Rule 3)
-                        goldRewardUnit = 0.25;
+                        goldRewardUnit = 0.25; // 25 สตางค์ (Odd Count)
                     }
                 }
                 
-                group.goldRewardUnit = goldRewardUnit; // Store the unit
-                
-                // Calculate monetary value based on the Admin-set price
+                g.goldRewardUnit = goldRewardUnit;
                 const monetaryTotalReward = goldRewardUnit * goldPriceBase;
-                
-                group.monetaryTotalReward = monetaryTotalReward; 
-                group.monetaryAverageReward = group.count > 0 ? (monetaryTotalReward / group.count) : 0;
+                g.monetaryTotalReward = monetaryTotalReward;
+                g.monetaryAverageReward = g.count > 0 ? monetaryTotalReward / g.count : 0;
             });
-            
-            // --- END REWARD CALCULATION ---
 
-            
-            // 4. Sort results
-            voteCounts.sort((a, b) => {
-                if (b.count !== a.count) {
-                    return b.count - a.count; // Sort by count descending
+
+            // 4. Render Groups
+            groupData.forEach(group => {
+                const percentage = totalPlayers > 0 ? (group.count / totalPlayers) * 100 : 0;
+                const isPlayerInGroup = group.number === playerVoteIndex;
+                
+                // Base classes for a group box
+                let groupClasses = 'bg-white shadow-md border-l-4 border-orange-500 transition duration-150 rounded-xl';
+                let areaClasses = 'class="group-vote-area"';
+                let statusContent = '';
+                
+                // Highlight and non-interactive if player is in this group
+                if (isPlayerInGroup) {
+                    groupClasses = 'bg-green-100 border-green-500 shadow-lg ring-2 ring-green-300 !cursor-default !hover:bg-green-100';
                 }
-                return a.label.localeCompare(b.label); // Sort by label ascending (A-E)
-            });
 
+                // Interaction Logic (Only for Player and RUNNING state, and not in current group)
+                if (isPlayer && gameState.status === 'RUNNING' && !isPlayerInGroup) {
+                    areaClasses = `onclick="selectGroup(${group.number}, '${group.label}')" class="cursor-pointer hover:bg-gray-100 transition duration-150 group-vote-area"`;
+                } else if (isPlayer && gameState.status === 'RUNNING' && isPlayerInGroup) {
+                     // Ensure the clicked state is explicitly non-interactive when RUNNING
+                    areaClasses = `class="group-vote-area cursor-default"`; 
+                }
 
-            // 5. Render group results
-            voteCounts.forEach(({ number, count, names, label, monetaryTotalReward, monetaryAverageReward, goldRewardUnit }) => {
-                const percentage = totalCount > 0 ? (count / totalCount) * 100 : 0;
-
-                // Logic for showing/hiding names
-                const namesList = names.length > 0 && showNames
-                    ? `<ul class="list-disc list-inside mt-3 ml-4 space-y-1 text-gray-700 max-h-40 overflow-y-auto">
-                           ${names.map(name => `<li class="text-sm">${name}</li>`).join('')}
-                       </ul>`
-                    : (showNames 
-                        ? '<p class="text-sm italic text-gray-500 mt-2">ยังไม่มีสมาชิกกลุ่ม</p>'
-                        : '<p class="text-sm italic text-gray-500 mt-2">รายชื่อจะแสดงหลังจบเกม</p>'
-                      );
-                
-                const voterListTitle = showNames 
-                    ? `รายชื่อสมาชิก (${names.length} คน):` 
-                    : 'รายชื่อสมาชิก: (ซ่อนระหว่างเล่น)';
-                
-                // Button visibility and disabled state (Dynamic in client side)
-                let buttonHtml = '';
+                // Player Status Message
                 if (isPlayer) {
-                    const isRunning = gameState.status === 'RUNNING';
-                    const isSelected = userCurrentVote === number;
-                    const buttonText = hasSubmittedInitialVote ? 
-                        (isSelected ? '✅ กลุ่มปัจจุบัน' : 'เปลี่ยนเป็นกลุ่มนี้') : 
-                        'เข้ากลุ่มนี้';
-                    
-                    // Button color logic for the HTML rendering
-                    const buttonClasses = isSelected && isRunning
-                        ? 'bg-green-600 hover:bg-green-700'
-                        : isRunning
-                            ? 'bg-orange-500 hover:bg-orange-600'
-                            : 'bg-gray-400';
-
-                    buttonHtml = `
-                        <div class="mt-4 pt-4 border-t border-gray-200 flex justify-end">
-                            <button 
-                                data-group-number="${number}"
-                                onclick="selectGroup(${number}, '${label}')"
-                                ${buttonsEnabled ? '' : 'disabled'}
-                                class="vote-group-button ${buttonClasses} text-white p-2 px-4 rounded-lg font-semibold transition duration-200 shadow-md disabled:opacity-50 disabled:cursor-not-allowed">
-                                ${buttonText}
-                            </button>
-                        </div>
-                    `;
+                    if (isPlayerInGroup) {
+                        // Display large, prominent status (MODIFIED TO text-3xl)
+                        statusContent = `<div class="mt-4 pt-4 flex justify-center"><p class="text-3xl font-extrabold text-green-700">คุณอยู่กลุ่มนี้</p></div>`;
+                    } else if (gameState.status === 'RUNNING') {
+                        // Display click message for other groups
+                        statusContent = `<div class="mt-4 pt-4 border-t border-gray-200 flex justify-end"><p class="text-sm text-gray-500 font-semibold pt-2 text-orange-600">กดเพื่อเปลี่ยนกลุ่ม</p></div>`;
+                    }
                 }
+
+                // Reward Formatting
+                const avgRewardFormatted = group.monetaryAverageReward.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+                const totalGoldWeightFormatted = formatGoldWeight(group.goldRewardUnit);
                 
-                // Format numbers with Thai locale and fixed decimals
-                const formattedMonetaryAverageReward = monetaryAverageReward.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-                const formattedGoldWeightReward = formatGoldWeight(goldRewardUnit);
+                // Member List Logic (Only display names if game is IDLE or if user is Admin)
+                let memberListHTML = '';
+                if (showNamesAndDetails) {
+                    const memberCountText = `รายชื่อสมาชิก (${group.names.length} คน):`;
+                    const listContent = group.names.length > 0 ? 
+                        `<ul class="list-disc list-inside mt-3 ml-4 space-y-1 text-gray-700 max-h-40 overflow-y-auto">${group.names.map(name => `<li class="text-sm">${name}</li>`).join('')}</ul>` : 
+                        '<p class="text-sm italic text-gray-500 mt-2">ยังไม่มีสมาชิกกลุ่ม</p>';
+                    
+                    memberListHTML = `<div class="mt-4 pt-3 border-t border-gray-200"><h4 class="font-semibold text-gray-700">${memberCountText}</h4>${listContent}</div>`;
+                }
 
 
-                const resultBlock = `
-                    <div class="bg-gray-50 p-4 rounded-xl shadow-md border-l-4 border-orange-500">
-                        <div class="flex justify-between items-center mb-2">
-                            <h3 class="text-xl font-bold text-gray-800">
-                                กลุ่ม <span class="text-orange-600">${label}</span>
-                            </h3>
-                            <span class="text-3xl font-extrabold text-orange-700">${count}</span>
+                resultsContainerEl.innerHTML += `
+                    <div ${areaClasses} class="${groupClasses} p-6">
+                        <div class="flex justify-between items-center mb-4">
+                            <h3 class="text-2xl font-bold text-gray-800">กลุ่ม <span class="text-orange-600">${group.label}</span></h3>
+                            <span class="text-4xl font-extrabold text-orange-700">${group.count}</span>
+                        </div>
+                        <div class="w-full bg-gray-200 rounded-full h-3 mb-3">
+                            <div class="bg-orange-500 h-3 rounded-full" style="width: ${percentage}%"></div>
+                        </div>
+                        <p class="text-sm text-gray-600 mb-4">คิดเป็น: ${percentage.toFixed(1)}%</p>
+                        
+                        <div class="p-3 bg-yellow-50 rounded-lg border border-yellow-200">
+                            <h4 class="font-semibold text-yellow-700 mb-2">🎁 รางวัลที่ได้รับ:</h4>
+                            <p class="text-base text-gray-800">รางวัลรวม: <span class="font-bold text-yellow-600">${totalGoldWeightFormatted}</span></p>
+                            <p class="text-base text-gray-800">รางวัลเฉลี่ย/คน: <span class="font-bold text-yellow-600">${avgRewardFormatted} บาท</span></p>
                         </div>
                         
-                        <!-- Progress Bar -->
-                        <div class="w-full bg-gray-200 rounded-full h-2.5 mb-3">
-                            <div class="bg-orange-500 h-2.5 rounded-full" style="width: ${percentage}%"></div>
-                        </div>
-                        <p class="text-sm text-gray-600 mb-2">คิดเป็น: ${percentage.toFixed(1)}%</p>
-                        
-                        <!-- Reward Details (MODIFIED: SHOWING WEIGHT) -->
-                        <div class="mt-4 pt-3 border-t border-gray-200">
-                            <h4 class="font-semibold text-yellow-700 mb-1">🎁 รางวัลที่ได้รับ:</h4>
-                            <p class="text-sm text-gray-800">
-                                รางวัลรวม: <span class="font-bold text-yellow-600">${formattedGoldWeightReward}</span>
-                            </p>
-                            <p class="text-sm text-gray-800">
-                                รางวัลเฉลี่ย/คน: <span class="font-bold text-yellow-600">${formattedMonetaryAverageReward} บาท</span>
-                            </p>
-                        </div>
-
-                        <!-- Voter List (Visibility controlled by JS/showNames) -->
-                        <div class="mt-4 pt-3 border-t border-gray-200">
-                            <h4 class="font-semibold text-gray-700">${voterListTitle}</h4>
-                            ${namesList}
-                        </div>
-                        
-                        ${buttonHtml}
+                        ${memberListHTML}
+                        ${statusContent}
                     </div>
                 `;
-                resultsContainer.innerHTML += resultBlock;
             });
-            
-            // 6. Explicitly ensure all buttons are enabled when RUNNING (Fixes the Resume bug)
-            if (isPlayer) {
-                const buttons = document.querySelectorAll('.vote-group-button');
-                buttons.forEach(btn => {
-                    const isSelected = parseInt(btn.dataset.groupNumber) === userCurrentVote;
-                    
-                    // Enable/Disable based on game status
-                    btn.disabled = !buttonsEnabled;
-                    
-                    // Update visual state (Color) to reflect enabled/disabled state
-                    if (buttonsEnabled) {
-                        btn.classList.remove('bg-gray-400', 'opacity-50');
-                        if (isSelected) {
-                            btn.classList.add('bg-green-600');
-                            btn.classList.remove('bg-orange-500');
-                        } else {
-                            btn.classList.add('bg-orange-500');
-                            btn.classList.remove('bg-green-600');
-                        }
-                    } else {
-                        btn.classList.add('bg-gray-400');
-                        btn.classList.remove('bg-orange-500', 'bg-green-600');
-                    }
-                });
-            }
         }
-        
-        // --- LOGOUT HANDLER (Shared by Player and Guest) ---
+
+        // --- Logout Handlers ---
+
         function handlePlayerGuestLogout() {
             sessionStorage.removeItem('currentUserRole');
-            // playerName is intentionally NOT removed here to preserve the identity for resume.
-            
-            updateRole('Unknown');
+            // NOTE: playerName is intentionally KEPT in sessionStorage to allow resuming
+            updateUserRole('Unknown');
             showPage('landing');
         }
 
-        // --- EVENT LISTENERS (Landing Page) ---
-        
-        customAlertCloseBtn.addEventListener('click', hideCustomAlert);
+        customAlertCloseBtnEl.addEventListener('click', hideAlert);
 
-        adminToggleLink.addEventListener('click', () => {
-            landingAdminCard.classList.toggle('hidden');
-            if (landingAdminCard.classList.contains('hidden')) {
-                landingPage.classList.remove('md:grid-cols-3');
-                landingPage.classList.add('md:grid-cols-2', 'md:max-w-xl');
+        // --- Event Listeners for Landing Page ---
+
+        adminToggleLinkEl.addEventListener('click', () => {
+            landingAdminCardEl.classList.toggle('hidden');
+            // Adjust grid layout on landing page based on admin card visibility
+            if (landingAdminCardEl.classList.contains('hidden')) {
+                landingPageEl.classList.remove('md:grid-cols-3');
+                landingPageEl.classList.add('md:grid-cols-2', 'md:max-w-xl');
             } else {
-                landingPage.classList.add('md:grid-cols-3');
-                landingPage.classList.remove('md:grid-cols-2', 'md:max-w-xl');
+                landingPageEl.classList.add('md:grid-cols-3');
+                landingPageEl.classList.remove('md:grid-cols-2', 'md:max-w-xl');
             }
         });
 
-        adminLoginForm.addEventListener('submit', async (e) => {
-            e.preventDefault();
-            const passcode = adminPasscodeInput.value.trim();
-
-            if (passcode === currentAdminPasscode) { 
-                updateRole('Admin'); 
+        adminLoginFormEl.addEventListener('submit', async (event) => {
+            event.preventDefault();
+            const passcode = adminPasscodeInputEl.value.trim();
+            
+            if (passcode === currentAdminPasscode) {
+                updateUserRole('Admin');
                 showPage('game');
-                
-                try {
-                    const gameStateDocRef = doc(db, GAME_STATE_DOC_PATH, 'current');
-                    await setDoc(gameStateDocRef, { activeAdminId: userId, currentGoldPriceBase: parseInt(goldPriceBaseInput.value) || DEFAULT_GOLD_PRICE }, { merge: true }); 
-                } catch (error) {
-                    console.error("Error setting activeAdminId: ", error);
-                }
-                
+                // Set activeAdminId in gameState to hide login form for other players
+                await setDoc(doc(db, GAME_STATE_DOC_PATH, 'current'), {
+                    activeAdminId: userId,
+                    currentGoldPriceBase: parseInt(goldPriceBaseInputEl.value) || DEFAULT_GOLD_PRICE
+                }, { merge: true });
             } else {
-                adminLoginMessageEl.textContent = `❌ รหัสไม่ถูกต้อง! ลองอีกครั้ง`;
+                adminLoginMessageEl.textContent = '❌ รหัสไม่ถูกต้อง! ลองอีกครั้ง';
+                adminPasscodeInputEl.value = '';
             }
-            adminPasscodeInput.value = ''; 
         });
 
-        // NEW: Admin Passcode Update Handler
-        updatePasscodeBtn.addEventListener('click', async () => {
-            if (!isAdmin || !db) return;
-            const newPasscode = newAdminPasscodeInput.value.trim();
-            
-            passcodeUpdateMessageEl.textContent = '';
-
-            if (newPasscode.length !== 4 || isNaN(parseInt(newPasscode))) {
-                passcodeUpdateMessageEl.textContent = 'รหัสต้องเป็นตัวเลข 4 หลักเท่านั้น';
-                passcodeUpdateMessageEl.classList.add('text-red-500');
-                return;
+        playerRegistrationFormEl.addEventListener('submit', (event) => {
+            event.preventDefault();
+            const name = playerNameInputEl.value.trim();
+            if (name) {
+                sessionStorage.setItem('playerName', name);
+                updateUserRole('Player', name);
+                showPage('game');
+                setupRealtimeListeners();
             }
+        });
+
+        resumePlayerButtonEl.addEventListener('click', () => {
+            const name = sessionStorage.getItem('playerName');
+            if (name) {
+                updateUserRole('Player', name);
+                showPage('game');
+                setupRealtimeListeners();
+            }
+        });
+
+        resumeAsGuestButtonEl.addEventListener('click', () => {
+            updateUserRole('Guest');
+            showPage('game');
+            setupRealtimeListeners();
+        });
+
+        guestAccessButtonEl.addEventListener('click', () => {
+            updateUserRole('Guest');
+            showPage('game');
+            setupRealtimeListeners();
+        });
+
+        // --- Event Listeners for Game Page ---
+
+        logoutAdminButtonEl.addEventListener('click', async () => {
+            if (isAdmin) {
+                // Clear activeAdminId when Admin logs out
+                await setDoc(doc(db, GAME_STATE_DOC_PATH, 'current'), { activeAdminId: null }, { merge: true });
+            }
+            sessionStorage.removeItem('currentUserRole');
+            sessionStorage.removeItem('playerName');
+            updateUserRole('Unknown');
+            showPage('landing');
+        });
+
+        logoutGuestButtonEl.addEventListener('click', handlePlayerGuestLogout);
+        logoutPlayerButtonEl.addEventListener('click', handlePlayerGuestLogout);
+
+        updatePasscodeBtnEl.addEventListener('click', async (event) => {
+            event.preventDefault();
+            if (!isAdmin || !db) return;
             
-            updatePasscodeBtn.disabled = true;
+            const newPasscode = newAdminPasscodeInputEl.value.trim();
+            
+            if (newPasscode.length !== 4 || isNaN(parseInt(newPasscode))) {
+                return passcodeUpdateMessageEl.textContent = 'รหัสต้องเป็นตัวเลข 4 หลักเท่านั้น', 
+                       passcodeUpdateMessageEl.classList.add('text-red-500'), false;
+            }
+
+            updatePasscodeBtnEl.disabled = true;
             passcodeUpdateMessageEl.textContent = 'กำลังบันทึก...';
             passcodeUpdateMessageEl.classList.remove('text-red-500', 'text-green-600');
 
-
             try {
-                const configDocRef = doc(db, ADMIN_CONFIG_DOC_PATH, 'current');
-                // FIX: Changed updateDoc to setDoc with merge: true to avoid "No document to update" error
-                await setDoc(configDocRef, { 
+                // Use setDoc with merge: true to ensure the document is created if it doesn't exist
+                await setDoc(doc(db, ADMIN_CONFIG_DOC_PATH, 'current'), {
                     passcode: newPasscode,
                     lastUpdatedBy: userId,
                     timestamp: serverTimestamp()
@@ -1298,76 +1177,16 @@
                 
                 passcodeUpdateMessageEl.textContent = '✅ บันทึกรหัสใหม่สำเร็จ!';
                 passcodeUpdateMessageEl.classList.add('text-green-600');
-                newAdminPasscodeInput.value = '';
-                
+                newAdminPasscodeInputEl.value = '';
             } catch (error) {
                 console.error("Error updating passcode: ", error);
                 passcodeUpdateMessageEl.textContent = '❌ บันทึกรหัสไม่สำเร็จ: ' + error.message;
                 passcodeUpdateMessageEl.classList.add('text-red-500');
             } finally {
-                updatePasscodeBtn.disabled = false;
+                updatePasscodeBtnEl.disabled = false;
                 setTimeout(() => passcodeUpdateMessageEl.textContent = '', 5000);
             }
         });
-
-        playerRegistrationForm.addEventListener('submit', (e) => {
-            e.preventDefault();
-            const name = playerNameInput.value.trim();
-            if (name) {
-                // When registering fresh, save the name and proceed
-                sessionStorage.setItem('playerName', name);
-                
-                updateRole('Player', name);
-                showPage('game');
-                startRealtimeListeners();
-            }
-        });
-        
-        resumePlayerButton.addEventListener('click', () => {
-            const storedName = sessionStorage.getItem('playerName');
-            if (storedName) {
-                updateRole('Player', storedName);
-                showPage('game');
-                startRealtimeListeners();
-            }
-        });
-        
-        // --- MODIFIED: REMOVED GAME STATE CHECK ---
-        resumeAsGuestButton.addEventListener('click', () => {
-            updateRole('Guest');
-            showPage('game');
-            startRealtimeListeners();
-        });
-        
-        // --- MODIFIED: REMOVED GAME STATE CHECK ---
-        guestAccessButton.addEventListener('click', () => {
-            updateRole('Guest');
-            showPage('game');
-            startRealtimeListeners();
-        });
-        
-        // --- EVENT LISTENERS (Game Page) ---
-
-        
-        logoutAdminButton.addEventListener('click', async () => {
-             if (isAdmin) { 
-                 try {
-                    const gameStateDocRef = doc(db, GAME_STATE_DOC_PATH, 'current');
-                    await setDoc(gameStateDocRef, { activeAdminId: null }, { merge: true }); 
-                } catch (error) {
-                    console.error("Error clearing activeAdminId on logout: ", error);
-                }
-            }
-            sessionStorage.removeItem('currentUserRole');
-            sessionStorage.removeItem('playerName'); 
-            updateRole('Unknown');
-            showPage('landing');
-        });
-
-        // Attach the shared handler to both player and guest logout buttons
-        logoutGuestButton.addEventListener('click', handlePlayerGuestLogout);
-        logoutPlayerButton.addEventListener('click', handlePlayerGuestLogout); 
-
     </script>
 
 </body>
