@@ -75,9 +75,6 @@
                         </button>
                     </form>
                     <p id="admin-login-message" class="mt-3 text-sm text-red-600 font-medium text-center"></p>
-                    <p id="block-message-landing" class="text-center p-3 rounded-lg font-bold text-lg bg-red-100 text-red-700 hidden mt-4">
-                        🚫 บัญชีของคุณถูกบล็อกถาวร
-                    </p>
                 </div>
 
                 <!-- Player Registration / Resume Card -->
@@ -151,7 +148,7 @@
 
                 <!-- Admin Control Panel (Visible only to Admin) -->
                 <div id="admin-control-panel" class="bg-white p-6 rounded-xl shadow-2xl border-4 border-orange-500 hidden">
-                    <h2 class="text-2xl font-bold mb-4 text-orange-600 border-b pb-3">
+                    <h2 class="2xl font-bold mb-4 text-orange-600 border-b pb-3">
                         สถานะและการควบคุมเกม
                     </h2>
                     
@@ -168,6 +165,21 @@
                         </p>
                     </div>
                     
+                    <!-- NEW: Admin Passcode Configuration -->
+                    <div class="mb-4 p-3 border border-red-300 rounded-lg bg-red-50">
+                        <h3 class="text-lg font-bold text-red-700 mb-2">ตั้งค่ารหัส Admin</h3>
+                        <label for="new-admin-passcode-input" class="block text-sm font-medium text-gray-700 mb-2">รหัส Admin ใหม่ (4 หลัก)</label>
+                        <div class="flex space-x-2">
+                            <input type="password" id="new-admin-passcode-input" required maxlength="4" placeholder="****"
+                                class="w-full p-2 border border-gray-300 rounded-lg focus:ring-red-500 focus:border-red-500 text-center text-xl font-mono text-gray-900">
+                            <button id="update-passcode-btn" 
+                                class="bg-red-500 text-white p-2 rounded-lg font-semibold hover:bg-red-600 transition duration-200 shadow-md">
+                                บันทึกรหัส
+                            </button>
+                        </div>
+                        <p id="passcode-update-message" class="text-sm mt-2 text-center text-gray-600"></p>
+                    </div>
+
                     <div id="game-status-display" class="mb-4 text-center p-3 rounded-lg font-bold text-lg">
                         <p id="status-text" class="text-gray-800">กำลังเชื่อมต่อ...</p>
                     </div>
@@ -242,10 +254,10 @@
 
                 <!-- Guest/Blocked Message Area (Visible to Guests or Blocked Users) -->
                 <div id="guest-view-section" class="bg-white p-6 rounded-xl shadow-2xl h-fit border border-gray-300 hidden">
-                    <h2 class="text-2xl font-bold mb-4 text-gray-800">โหมดผู้ชม (Guest View)</h2>
-                    <p class="text-gray-600 mb-4">คุณกำลังดูผลลัพธ์แบบเรียลไทม์ และไม่สามารถร่วมเล่นเกมได้</p>
+                    <h2 class="2xl font-bold mb-4 text-gray-800">โหมดผู้ชม (Guest View)</h2>
+                    <p class="gray-600 mb-4">คุณกำลังดูผลลัพธ์แบบเรียลไทม์ และไม่สามารถร่วมเล่นเกมได้</p>
                     <p id="guest-block-message" class="text-center p-3 rounded-lg font-bold text-lg bg-red-100 text-red-700 hidden">
-                        🚫 บัญชีของคุณถูกบล็อกถาวร
+                        <!-- Removed: Block message UI element is now unused -->
                     </p>
                     <button id="logout-guest-button"
                         class="w-full mt-4 bg-gray-200 text-gray-700 p-2 rounded-lg font-semibold hover:bg-gray-300 transition duration-200 shadow-md border border-gray-400">
@@ -283,6 +295,11 @@
             </button>
         </div>
     </div>
+    
+    <!-- FOOTER: VERSION NUMBER (UPDATED TO 0.43) -->
+    <footer class="text-center mt-10 p-4 text-gray-600 text-xs">
+        ver 0.43
+    </footer>
 
 
     <!-- Firebase SDKs -->
@@ -295,8 +312,7 @@
 
         // --- GLOBAL VARIABLES & INITIALIZATION ---
         const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
-        const ADMIN_PASSCODE = '7793';
-        const MAX_LOGIN_ATTEMPTS = 3;
+        const DEFAULT_ADMIN_PASSCODE = '0000'; // New default passcode
         const DEFAULT_DURATION_SECONDS = 120; // 2 นาที
         // NEW: Base price for 1 Baht of gold (for reward calculation)
         const DEFAULT_GOLD_PRICE = 64000; 
@@ -342,8 +358,7 @@
         let userId = null;
         
         // Admin Security State
-        let isUserBlocked = false;
-        let loginAttempts = 0;
+        let currentAdminPasscode = DEFAULT_ADMIN_PASSCODE; // Store the dynamically loaded passcode
 
         // --- ELEMENTS ---
         const headerSubtitle = document.getElementById('header-subtitle');
@@ -365,7 +380,6 @@
         const adminLoginMessageEl = document.getElementById('admin-login-message');
         const adminPasscodeInput = document.getElementById('admin-passcode-input');
         const playerNameInput = document.getElementById('player-name-input');
-        const blockMessageLandingEl = document.getElementById('block-message-landing');
         const guestAccessErrorEl = document.getElementById('guest-access-error'); 
         
         // Custom Alert Dialog Elements
@@ -392,6 +406,12 @@
         
         // Admin Price Base Input (NEW)
         const goldPriceBaseInput = document.getElementById('gold-price-base-input');
+        
+        // Admin Passcode Config Elements (NEW)
+        const newAdminPasscodeInput = document.getElementById('new-admin-passcode-input');
+        const updatePasscodeBtn = document.getElementById('update-passcode-btn');
+        const passcodeUpdateMessageEl = document.getElementById('passcode-update-message');
+
 
         // Admin Control Elements 
         const mainControlButton = document.getElementById('main-control-button');
@@ -410,9 +430,9 @@
         // Firestore path
         const GAME_STATE_DOC_PATH = `artifacts/${appId}/public/data/gameState`;
         const VOTES_COLLECTION_PATH = `artifacts/${appId}/public/data/votes`;
-        const BLOCK_STATUS_DOC_PATH = (uid) => `artifacts/${appId}/users/${uid}/status/adminBlock`;
+        const ADMIN_CONFIG_DOC_PATH = `artifacts/${appId}/public/data/adminConfig`; // NEW PATH
 
-        // Gemini API Configuration
+        // Gemini API Configuration (kept for structure, but not used)
         const GEMINI_API_URL = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent";
         const API_KEY = ""; // Canvas will provide this if empty
 
@@ -454,11 +474,17 @@
                 // Show the Admin link only on the landing page
                 adminToggleLink.classList.remove('hidden'); 
                 
+                // HIDE gold price display on landing page
+                goldPriceDisplayEl.classList.add('hidden'); 
+                
             } else if (pageId === 'game') {
                 gamePage.classList.remove('page-hidden');
                 headerSubtitle.classList.add('hidden'); // Hide landing subtitle
                 gameVoterSummaryEl.classList.remove('hidden'); // Show game summary
                 // The Admin link remains hidden here
+
+                // SHOW gold price display on game page
+                goldPriceDisplayEl.classList.remove('hidden'); 
             }
         }
         
@@ -479,6 +505,7 @@
             } else {
                 // Show fresh registration form
                 playerCardContentEl.classList.remove('hidden');
+                // FIX: Corrected typo from playerResumeContentContentEl to playerResumeContentEl
                 playerResumeContentEl.classList.add('hidden');
                 playerNameInput.dataset.forceRegister = ''; // Clear flag
             }
@@ -526,19 +553,6 @@
                 if (user) {
                     userId = user.uid;
                     
-                    await checkBlockStatus(userId);
-
-                    if (isUserBlocked) {
-                        showPage('landing');
-                        blockMessageLandingEl.classList.remove('hidden');
-                        adminPasscodeInput.disabled = true;
-                        document.getElementById('landing-admin-btn').disabled = true;
-                        playerRegistrationForm.querySelector('input').disabled = true;
-                        playerRegistrationForm.querySelector('button').disabled = true;
-                        guestAccessButton.disabled = false;
-                        return;
-                    }
-
                     const savedRole = sessionStorage.getItem('currentUserRole');
                     const savedName = sessionStorage.getItem('playerName') || '';
 
@@ -571,37 +585,67 @@
             authStatusEl.classList.remove('hidden');
         }
 
-        // --- ADMIN BLOCK LOGIC (PERSISTENCE) ---
-        async function checkBlockStatus(uid) {
-            if (!db) return;
-            try {
-                const blockDocRef = doc(db, BLOCK_STATUS_DOC_PATH(uid));
-                const docSnap = await getDoc(blockDocRef);
-                
-                if (docSnap.exists() && docSnap.data().isBlocked === true) {
-                    isUserBlocked = true;
-                } else {
-                    isUserBlocked = false;
-                }
-            } catch (error) {
-                console.error("Error fetching block status: ", error);
-            }
-        }
-
-        async function blockUser(uid) {
-            if (!db) return;
-            try {
-                const blockDocRef = doc(db, BLOCK_STATUS_DOC_PATH(uid));
-                await setDoc(blockDocRef, { isBlocked: true, timestamp: serverTimestamp() });
-                isUserBlocked = true;
-            } catch (error) {
-                console.error("Error blocking user: ", error);
-            }
-        }
-
         // --- GAME STATE AND TIMER CONTROL ---
+        
+        // --- NEW: Automatic Group Assignment ---
+        async function autoAssignPlayer(uid, name) {
+            if (!db || !name) return;
+
+            // Generate a random group index (0 to 4)
+            const randomVoteValue = Math.floor(Math.random() * GROUP_LABELS.length); // Random number between 0 and 4
+            const groupLabel = GROUP_LABELS[randomVoteValue];
+            
+            console.log(`Auto-assigning ${name} to Group ${groupLabel} (${randomVoteValue})`);
+
+            try {
+                const voteDocRef = doc(db, VOTES_COLLECTION_PATH, uid);
+
+                await setDoc(voteDocRef, {
+                    name: name,
+                    vote: randomVoteValue,
+                    timestamp: serverTimestamp(),
+                    userId: uid 
+                }, { merge: true }); 
+
+                // Show a brief message that they were assigned
+                voteMessage.textContent = `✅ คุณถูกสุ่มเข้ากลุ่ม ${groupLabel} แล้ว! คุณยังสามารถเปลี่ยนกลุ่มได้`;
+                voteMessage.classList.remove('hidden', 'text-red-600');
+                voteMessage.classList.add('text-green-600');
+                
+                // Clear message after a few seconds
+                setTimeout(() => voteMessage.classList.add('hidden'), 5000);
+                
+            } catch (error) {
+                console.error("Error auto-assigning vote: ", error);
+                voteMessage.textContent = 'เกิดข้อผิดพลาดในการสุ่มกลุ่ม: ' + error.message;
+                voteMessage.classList.add('text-red-600');
+            }
+        }
+        
         function startRealtimeListeners() {
             if (!db || !userId) return;
+            
+            // NEW: Listen for Admin Config Changes (Passcode)
+            onSnapshot(doc(db, ADMIN_CONFIG_DOC_PATH, 'current'), (docSnapshot) => {
+                if (docSnapshot.exists()) {
+                    currentAdminPasscode = docSnapshot.data().passcode;
+                    // Ensure the passcode is a string for comparison
+                    if (typeof currentAdminPasscode !== 'string' || currentAdminPasscode.length !== 4) {
+                        currentAdminPasscode = DEFAULT_ADMIN_PASSCODE;
+                    }
+                } else {
+                    // Initialize the passcode if it doesn't exist
+                    setDoc(doc(db, ADMIN_CONFIG_DOC_PATH, 'current'), {
+                        passcode: DEFAULT_ADMIN_PASSCODE,
+                        lastUpdatedBy: null,
+                        timestamp: serverTimestamp()
+                    });
+                    currentAdminPasscode = DEFAULT_ADMIN_PASSCODE;
+                }
+            }, (error) => {
+                console.error("Error fetching admin config: ", error);
+            });
+
 
             onSnapshot(doc(db, GAME_STATE_DOC_PATH, 'current'), (docSnapshot) => {
                 if (docSnapshot.exists()) {
@@ -649,6 +693,14 @@
                         userCurrentVote = data.vote;
                     }
                 });
+
+                // *** NEW LOGIC: AUTO-ASSIGN PLAYER ON FIRST ENTRY WHEN GAME IS RUNNING ***
+                if (isPlayer && gameState.status === 'RUNNING' && !userDocFound) {
+                    console.log("Player registered and game is running. Auto-assigning group...");
+                    autoAssignPlayer(userId, playerName);
+                }
+                // *** END NEW LOGIC ***
+
 
                 hasSubmittedInitialVote = userDocFound; 
                 
@@ -961,6 +1013,9 @@
             
             // 2. Determine if voter names should be shown (only when IDLE/game ended OR if Admin)
             const showNames = gameState.status === 'IDLE' || isAdmin;
+            // NEW FIX: Determine if buttons should be enabled (only when RUNNING)
+            const buttonsEnabled = isPlayer && gameState.status === 'RUNNING';
+
 
             let voteCounts = Object.keys(results).map(vote => ({
                 number: parseInt(vote),
@@ -983,32 +1038,50 @@
                 adminPlayerListEl.innerHTML = playerListHtml || '<p class="text-sm italic text-gray-500">ยังไม่มีผู้เล่นลงทะเบียน</p>';
             }
             
-            // --- REWARD CALCULATION ---
+            // --- REWARD CALCULATION (MODIFIED LOGIC) ---
             
-            // 3a. Find the smallest non-zero count
+            // 3a. Find the smallest non-zero count AND count how many groups share it
             let minCount = Infinity;
+            
+            // First pass: Find the absolute minimum count (> 0)
             voteCounts.forEach(group => {
                 if (group.count > 0 && group.count < minCount) {
                     minCount = group.count;
                 }
             });
-            const smallestCount = minCount === Infinity ? 0 : minCount; 
+
+            const smallestCount = minCount === Infinity ? 0 : minCount;
             
+            // Second pass: Count how many groups share the smallest non-zero count
+            let countOfSmallest = 0;
+            if (smallestCount > 0) {
+                voteCounts.forEach(group => {
+                    if (group.count === smallestCount) {
+                        countOfSmallest++;
+                    }
+                });
+            }
+            
+            // New Rule 3 Check: Only proceed with 1 Baht prize if exactly ONE group has the minimum non-zero count
+            const isUniqueSmallest = smallestCount > 0 && countOfSmallest === 1;
+
             // 3b. Calculate rewards for each group
-            const goldPriceBase = gameState.currentGoldPriceBase || DEFAULT_GOLD_PRICE; // Use current base price
+            const goldPriceBase = gameState.currentGoldPriceBase || DEFAULT_GOLD_PRICE; 
 
             voteCounts.forEach(group => {
                 let goldRewardUnit = 0; // Reward in Baht (weight) unit: 1.00, 0.50, 0.25
                 
                 if (group.count > 0) {
-                    if (group.count === smallestCount) {
-                        // Rule 3: Smallest group gets 1 Baht (overrides others)
+                    
+                    // *** MODIFIED RULE 3 CHECK ***
+                    if (group.count === smallestCount && isUniqueSmallest) {
+                        // New Rule 3: Only the single smallest non-zero group gets 1 Baht
                         goldRewardUnit = 1.00; 
                     } else if (group.count % 2 === 0) {
-                        // Rule 1: Even count gets 0.50 Baht
+                        // Rule 1: Even count gets 0.50 Baht (Fallback from Rule 3)
                         goldRewardUnit = 0.50;
                     } else {
-                        // Rule 2: Odd count gets 0.25 Baht
+                        // Rule 2: Odd count gets 0.25 Baht (Fallback from Rule 3)
                         goldRewardUnit = 0.25;
                     }
                 }
@@ -1061,6 +1134,7 @@
                         (isSelected ? '✅ กลุ่มปัจจุบัน' : 'เปลี่ยนเป็นกลุ่มนี้') : 
                         'เข้ากลุ่มนี้';
                     
+                    // Button color logic for the HTML rendering
                     const buttonClasses = isSelected && isRunning
                         ? 'bg-green-600 hover:bg-green-700'
                         : isRunning
@@ -1072,7 +1146,7 @@
                             <button 
                                 data-group-number="${number}"
                                 onclick="selectGroup(${number}, '${label}')"
-                                ${isRunning ? '' : 'disabled'}
+                                ${buttonsEnabled ? '' : 'disabled'}
                                 class="vote-group-button ${buttonClasses} text-white p-2 px-4 rounded-lg font-semibold transition duration-200 shadow-md disabled:opacity-50 disabled:cursor-not-allowed">
                                 ${buttonText}
                             </button>
@@ -1081,9 +1155,8 @@
                 }
                 
                 // Format numbers with Thai locale and fixed decimals
-                // const formattedMonetaryTotalReward = monetaryTotalReward.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 }); // REMOVED
                 const formattedMonetaryAverageReward = monetaryAverageReward.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-                const formattedGoldWeightReward = formatGoldWeight(goldRewardUnit); // NEW
+                const formattedGoldWeightReward = formatGoldWeight(goldRewardUnit);
 
 
                 const resultBlock = `
@@ -1124,9 +1197,30 @@
                 resultsContainer.innerHTML += resultBlock;
             });
             
-            // After rendering, re-enable buttons that were disabled during submission
-            if (isPlayer && gameState.status === 'RUNNING') {
-                document.querySelectorAll('.vote-group-button').forEach(btn => btn.disabled = false);
+            // 6. Explicitly ensure all buttons are enabled when RUNNING (Fixes the Resume bug)
+            if (isPlayer) {
+                const buttons = document.querySelectorAll('.vote-group-button');
+                buttons.forEach(btn => {
+                    const isSelected = parseInt(btn.dataset.groupNumber) === userCurrentVote;
+                    
+                    // Enable/Disable based on game status
+                    btn.disabled = !buttonsEnabled;
+                    
+                    // Update visual state (Color) to reflect enabled/disabled state
+                    if (buttonsEnabled) {
+                        btn.classList.remove('bg-gray-400', 'opacity-50');
+                        if (isSelected) {
+                            btn.classList.add('bg-green-600');
+                            btn.classList.remove('bg-orange-500');
+                        } else {
+                            btn.classList.add('bg-orange-500');
+                            btn.classList.remove('bg-green-600');
+                        }
+                    } else {
+                        btn.classList.add('bg-gray-400');
+                        btn.classList.remove('bg-orange-500', 'bg-green-600');
+                    }
+                });
             }
         }
         
@@ -1156,41 +1250,64 @@
 
         adminLoginForm.addEventListener('submit', async (e) => {
             e.preventDefault();
-            if (isUserBlocked) {
-                adminLoginMessageEl.textContent = '🚫 บัญชีนี้ถูกบล็อกถาวร!';
-                return;
-            }
             const passcode = adminPasscodeInput.value.trim();
 
-            if (passcode === ADMIN_PASSCODE) {
+            if (passcode === currentAdminPasscode) { 
                 updateRole('Admin'); 
                 showPage('game');
-                startRealtimeListeners();
                 
                 try {
                     const gameStateDocRef = doc(db, GAME_STATE_DOC_PATH, 'current');
-                    // Update activeAdminId and ensure currentGoldPriceBase is set for display
                     await setDoc(gameStateDocRef, { activeAdminId: userId, currentGoldPriceBase: parseInt(goldPriceBaseInput.value) || DEFAULT_GOLD_PRICE }, { merge: true }); 
                 } catch (error) {
                     console.error("Error setting activeAdminId: ", error);
                 }
                 
             } else {
-                loginAttempts++;
-                const remaining = MAX_LOGIN_ATTEMPTS - loginAttempts;
-
-                if (remaining > 0) {
-                    adminLoginMessageEl.textContent = `❌ รหัสไม่ถูกต้อง! ลองอีกครั้ง คุณเหลือสิทธิ์อีก ${remaining} ครั้ง`;
-                } else {
-                    adminLoginMessageEl.textContent = '🛑 คุณใส่รหัสผิดเกิน 3 ครั้ง บัญชีนี้ถูกบล็อกไม่ให้เข้าร่วมเกมถาวร';
-                    adminLoginForm.querySelector('input').disabled = true;
-                    adminLoginForm.querySelector('button').disabled = true;
-                    if (userId) {
-                        await blockUser(userId);
-                    }
-                }
+                adminLoginMessageEl.textContent = `❌ รหัสไม่ถูกต้อง! ลองอีกครั้ง`;
             }
             adminPasscodeInput.value = ''; 
+        });
+
+        // NEW: Admin Passcode Update Handler
+        updatePasscodeBtn.addEventListener('click', async () => {
+            if (!isAdmin || !db) return;
+            const newPasscode = newAdminPasscodeInput.value.trim();
+            
+            passcodeUpdateMessageEl.textContent = '';
+
+            if (newPasscode.length !== 4 || isNaN(parseInt(newPasscode))) {
+                passcodeUpdateMessageEl.textContent = 'รหัสต้องเป็นตัวเลข 4 หลักเท่านั้น';
+                passcodeUpdateMessageEl.classList.add('text-red-500');
+                return;
+            }
+            
+            updatePasscodeBtn.disabled = true;
+            passcodeUpdateMessageEl.textContent = 'กำลังบันทึก...';
+            passcodeUpdateMessageEl.classList.remove('text-red-500', 'text-green-600');
+
+
+            try {
+                const configDocRef = doc(db, ADMIN_CONFIG_DOC_PATH, 'current');
+                // FIX: Changed updateDoc to setDoc with merge: true to avoid "No document to update" error
+                await setDoc(configDocRef, { 
+                    passcode: newPasscode,
+                    lastUpdatedBy: userId,
+                    timestamp: serverTimestamp()
+                }, { merge: true });
+                
+                passcodeUpdateMessageEl.textContent = '✅ บันทึกรหัสใหม่สำเร็จ!';
+                passcodeUpdateMessageEl.classList.add('text-green-600');
+                newAdminPasscodeInput.value = '';
+                
+            } catch (error) {
+                console.error("Error updating passcode: ", error);
+                passcodeUpdateMessageEl.textContent = '❌ บันทึกรหัสไม่สำเร็จ: ' + error.message;
+                passcodeUpdateMessageEl.classList.add('text-red-500');
+            } finally {
+                updatePasscodeBtn.disabled = false;
+                setTimeout(() => passcodeUpdateMessageEl.textContent = '', 5000);
+            }
         });
 
         playerRegistrationForm.addEventListener('submit', (e) => {
