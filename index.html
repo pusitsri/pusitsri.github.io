@@ -104,6 +104,10 @@
                         <button id="resume-player-button" class="w-full mt-2 bg-orange-500 text-white p-3 rounded-lg font-semibold hover:bg-orange-600 transition duration-200 shadow-md">
                             เล่นเกมต่อในชื่อนี้
                         </button>
+                        <!-- NEW CHANGE NAME BUTTON -->
+                        <button id="change-player-name-button" class="w-full mt-3 bg-red-400 text-white p-3 rounded-lg font-semibold hover:bg-red-500 transition duration-200 shadow-md disabled:opacity-50 disabled:bg-gray-400 disabled:hover:bg-gray-400">
+                            เปลี่ยนชื่อผู้เล่น
+                        </button>
                         <button id="resume-as-guest-button" class="w-full mt-3 bg-gray-200 text-gray-700 p-3 rounded-lg font-semibold hover:bg-gray-300 transition duration-200 shadow-md border border-gray-400">
                             เข้าชมผลลัพธ์ (Guest Mode)
                         </button>
@@ -165,6 +169,31 @@
                         </p>
                     </div>
                     
+                    <!-- MODIFIED: Reward Visibility Radio Group + Confirm Button -->
+                    <div class="mb-4 p-3 border border-gray-300 rounded-lg bg-gray-50">
+                        <h3 class="text-sm font-medium text-gray-700 mb-2 border-b pb-1">
+                            การแสดงผลรางวัล (Real-time)
+                        </h3>
+                        <div class="flex flex-col space-y-2 mb-3">
+                            <label class="inline-flex items-center text-gray-700">
+                                <input type="radio" name="rewardVisibility" id="radio-show-rewards" value="show"
+                                       class="form-radio h-4 w-4 text-green-600 focus:ring-green-500">
+                                <span class="ml-2 text-sm font-medium">แสดงรางวัล (ตัวเลข)</span>
+                            </label>
+                            <label class="inline-flex items-center text-gray-700">
+                                <input type="radio" name="rewardVisibility" id="radio-hide-rewards" value="hide"
+                                       class="form-radio h-4 w-4 text-red-600 focus:ring-red-500">
+                                <span class="ml-2 text-sm font-medium">ซ่อนรางวัล (แทนด้วย 'x')</span>
+                            </label>
+                        </div>
+                        <button id="confirm-rewards-visibility-btn"
+                                class="w-full bg-orange-500 text-white p-2 rounded-lg font-semibold hover:bg-orange-600 transition duration-200 shadow-md disabled:opacity-50">
+                            ยืนยันการตั้งค่า
+                        </button>
+                        <p id="rewards-update-message" class="text-xs mt-2 text-center text-gray-600"></p>
+                    </div>
+
+
                     <!-- NEW: Admin Passcode Configuration -->
                     <div class="mb-4 p-3 border border-red-300 rounded-lg bg-red-50">
                         <h3 class="text-lg font-bold text-red-700 mb-2">ตั้งค่ารหัส Admin</h3>
@@ -225,7 +254,7 @@
                 <div id="admin-player-list-panel" class="bg-white p-6 rounded-xl shadow-2xl border border-gray-300 hidden">
                     <h2 class="text-2xl font-bold mb-4 text-orange-600 border-b pb-3">
                         รายชื่อผู้เล่นทั้งหมด (<span id="admin-total-players" class="text-gray-600">0</span> คน)
-                    </h2>
+                    </h2 >
                     <div id="admin-player-list" class="space-y-2 max-h-60 overflow-y-auto">
                         <p class="text-sm italic text-gray-500">รอข้อมูลผู้เล่น...</p>
                     </div>
@@ -299,7 +328,7 @@
     
     <!-- FOOTER: VERSION NUMBER (UPDATED TO 0.74) -->
     <footer class="text-center mt-10 p-4 text-gray-600 text-xs">
-        ver 0.77
+        ver 0.85
     </footer>
 
 
@@ -318,7 +347,7 @@
         const GROUP_LABELS = ['A', 'B', 'C', 'D', 'E'];
 
         // State Variables
-        let gameState = {status: 'IDLE', endTime: null, remainingTimeSeconds: DEFAULT_DURATION_SECONDS, newGameTimestamp: null, currentGoldPriceBase: DEFAULT_GOLD_PRICE};
+        let gameState = {status: 'IDLE', endTime: null, remainingTimeSeconds: DEFAULT_DURATION_SECONDS, newGameTimestamp: null, currentGoldPriceBase: DEFAULT_GOLD_PRICE, showRewards: true};
         let timerInterval = null;
         let hasSubmittedInitialVote = false;
         let currentUserRole = 'Unknown';
@@ -387,6 +416,13 @@
         const statusTextEl = document.getElementById('status-text');
         const timerDisplayEl = document.getElementById('timer-display');
         const timerValueEl = document.getElementById('timer-value');
+        const changePlayerNameButtonEl = document.getElementById('change-player-name-button');
+        // NEW DOM
+        const radioShowRewardsEl = document.getElementById('radio-show-rewards'); 
+        const radioHideRewardsEl = document.getElementById('radio-hide-rewards');
+        const confirmRewardsVisibilityBtnEl = document.getElementById('confirm-rewards-visibility-btn');
+        const rewardsUpdateMessageEl = document.getElementById('rewards-update-message');
+
 
         // Firestore Paths
         const GAME_STATE_DOC_PATH = `artifacts/${appId}/public/data/gameState`;
@@ -429,6 +465,23 @@
             if (unit === 0.50) return '50 สตางค์';
             if (unit === 0.25) return '25 สตางค์';
             return '0 บาท';
+        }
+
+        // NEW Utility function for masking monetary value
+        function maskMonetaryValue(value) {
+            // If value is exactly zero, the toLocaleString() returns '0' or '0.00'
+            const valueString = value.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+            
+            // Mask all digits and separators, keeping the '.xx' format logic
+            const masked = valueString.replace(/[0-9]/g, 'x');
+
+            // Since we need to mask 0 as well, we only check if the original value is truly 0.
+            if (value === 0 || value === 0.00) {
+                 return 'x.xx'; 
+            }
+            
+            // Ensure the result is correctly masked (e.g., '64,000.00' -> 'xx,xxx.xx')
+            return masked;
         }
 
         function showPage(pageId) {
@@ -616,7 +669,8 @@
                         endTime: null,
                         remainingTimeSeconds: DEFAULT_DURATION_SECONDS,
                         newGameTimestamp: serverTimestamp(),
-                        currentGoldPriceBase: DEFAULT_GOLD_PRICE
+                        currentGoldPriceBase: DEFAULT_GOLD_PRICE,
+                        showRewards: true
                     }, { merge: true });
                 }
                 handleGameStateChange();
@@ -713,6 +767,13 @@
                 goldPriceBaseInputEl.value = gameState.currentGoldPriceBase;
             }
 
+            // NEW: Update Rewards Visibility Radio Button UI
+            if (isAdmin) {
+                const isShowing = gameState.showRewards !== false; 
+                radioShowRewardsEl.checked = isShowing;
+                radioHideRewardsEl.checked = !isShowing;
+            }
+
             // Player/Guest re-registration check
             if (isPlayer || isGuest) {
                 if (isGameNew) {
@@ -727,6 +788,24 @@
                     }
                     // For the first time accessing a game in IDLE state, save the timestamp
                     sessionStorage.setItem('latestGameTimestamp', String(newGameTimestamp));
+                }
+            }
+            
+            // NEW: Control the name change button on the landing page based on game status
+            if (changePlayerNameButtonEl) {
+                const isGameRunningOrPaused = gameState.status === 'RUNNING' || gameState.status === 'PAUSED';
+                changePlayerNameButtonEl.disabled = isGameRunningOrPaused;
+                changePlayerNameButtonEl.textContent = isGameRunningOrPaused ? 
+                    'เปลี่ยนชื่อผู้เล่น (เกมกำลังดำเนินอยู่)' : 
+                    'เปลี่ยนชื่อผู้เล่น';
+                
+                // If game is running/paused, show warning if they try to change name
+                if (isGameRunningOrPaused) {
+                    changePlayerNameButtonEl.classList.add('disabled:bg-gray-400');
+                    changePlayerNameButtonEl.classList.remove('bg-red-400', 'hover:bg-red-500');
+                } else {
+                    changePlayerNameButtonEl.classList.remove('disabled:bg-gray-400');
+                    changePlayerNameButtonEl.classList.add('bg-red-400', 'hover:bg-red-500');
                 }
             }
             
@@ -765,6 +844,35 @@
         }
         
         // --- Admin Actions ---
+
+        // NEW: Reward Visibility Radio Group Confirmation Listener
+        confirmRewardsVisibilityBtnEl.addEventListener('click', async () => {
+            if (!db || !userId || !isAdmin) return;
+
+            const isShowing = radioShowRewardsEl.checked;
+            
+            confirmRewardsVisibilityBtnEl.disabled = true;
+            rewardsUpdateMessageEl.textContent = 'กำลังบันทึก...';
+            rewardsUpdateMessageEl.classList.remove('text-red-500', 'text-green-600');
+            
+            try {
+                // Set the showRewards state based on radio selection
+                await setDoc(doc(db, GAME_STATE_DOC_PATH, 'current'), {
+                    showRewards: isShowing,
+                    currentGoldPriceBase: parseInt(goldPriceBaseInputEl.value) || DEFAULT_GOLD_PRICE 
+                }, { merge: true });
+                
+                rewardsUpdateMessageEl.textContent = '✅ บันทึกการตั้งค่าสำเร็จ!';
+                rewardsUpdateMessageEl.classList.add('text-green-600');
+            } catch (error) {
+                console.error("Error updating showRewards state: ", error);
+                rewardsUpdateMessageEl.textContent = '❌ บันทึกไม่สำเร็จ: ' + error.message;
+                rewardsUpdateMessageEl.classList.add('text-red-500');
+            } finally {
+                confirmRewardsVisibilityBtnEl.disabled = false;
+                setTimeout(() => rewardsUpdateMessageEl.textContent = '', 5000);
+            }
+        });
         
         mainControlButtonEl.addEventListener('click', async () => {
             if (!db || !userId || !isAdmin) return;
@@ -801,7 +909,8 @@
                     remainingTimeSeconds: DEFAULT_DURATION_SECONDS,
                     newGameTimestamp: serverTimestamp(),
                     adminId: userId,
-                    currentGoldPriceBase: newPriceBase
+                    currentGoldPriceBase: newPriceBase,
+                    showRewards: radioShowRewardsEl.checked // Read current UI state
                 });
             } catch (error) {
                 console.error("Error starting game: ", error);
@@ -933,6 +1042,8 @@
             
             // Should display names and detailed info if game is IDLE (finished) OR if the user is Admin
             const showNamesAndDetails = gameState.status === 'IDLE' || isAdmin;
+            // Determine if rewards should be shown based on state
+            const showRewards = gameState.showRewards !== false; 
             
             // 1. Prepare data structure
             let groupData = Object.keys(groupedVotes).map(index => ({
@@ -969,23 +1080,23 @@
             const isSingleMinimumGroup = minCountIfAny > 0 && countOfMinGroups === 1;
             const goldPriceBase = gameState.currentGoldPriceBase || DEFAULT_GOLD_PRICE;
 
-            groupData.forEach(g => {
+            groupData.forEach(group => { // Start of group loop
                 let goldRewardUnit = 0;
                 
-                if (g.count > 0) {
-                    if (g.count === minCountIfAny && isSingleMinimumGroup) {
+                if (group.count > 0) {
+                    if (group.count === minCountIfAny && isSingleMinimumGroup) {
                         goldRewardUnit = 1; // 1 บาท (Golden Opportunity - Single Minimum)
-                    } else if (g.count % 2 === 0) {
+                    } else if (group.count % 2 === 0) {
                         goldRewardUnit = 0.50; // 50 สตางค์ (Even Count)
                     } else {
                         goldRewardUnit = 0.25; // 25 สตางค์ (Odd Count)
                     }
                 }
                 
-                g.goldRewardUnit = goldRewardUnit;
+                group.goldRewardUnit = goldRewardUnit;
                 const monetaryTotalReward = goldRewardUnit * goldPriceBase;
-                g.monetaryTotalReward = monetaryTotalReward;
-                g.monetaryAverageReward = g.count > 0 ? monetaryTotalReward / g.count : 0;
+                group.monetaryTotalReward = monetaryTotalReward;
+                group.monetaryAverageReward = group.count > 0 ? monetaryTotalReward / group.count : 0;
             });
 
 
@@ -998,6 +1109,9 @@
                 let groupClasses = 'shadow-md border-l-4 border-orange-500 transition duration-150 rounded-xl';
                 let areaClasses = 'class="group-vote-area"';
                 let statusContent = '';
+                
+                // FIX: Initialize memberListHTML before use
+                let memberListHTML = ''; 
                 
                 // Highlight and non-interactive if player is in this group
                 if (isPlayerInGroup) {
@@ -1023,12 +1137,20 @@
                     }
                 }
 
-                // Reward Formatting
-                const avgRewardFormatted = group.monetaryAverageReward.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-                const totalGoldWeightFormatted = formatGoldWeight(group.goldRewardUnit);
+                // NEW: Reward Formatting with Masking
+                let totalRewardWeightDisplay = formatGoldWeight(group.goldRewardUnit);
+                let avgRewardMonetaryDisplay = group.monetaryAverageReward.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' บาท';
+                
+                if (!showRewards) { // Use the 'showRewards' variable correctly here
+                    // Mask both zero and non-zero rewards
+                    totalRewardWeightDisplay = 'xx สตางค์/บาท'; // Mask the weight description
+                    
+                    const avgRewardBase = group.monetaryAverageReward;
+                    // Mask the average monetary reward
+                    avgRewardMonetaryDisplay = maskMonetaryValue(avgRewardBase) + ' บาท';
+                }
                 
                 // Member List Logic (Only display names if game is IDLE or if user is Admin)
-                let memberListHTML = '';
                 if (showNamesAndDetails) {
                     const memberCountText = `รายชื่อสมาชิก (${group.names.length} คน):`;
                     const listContent = group.names.length > 0 ? 
@@ -1037,7 +1159,6 @@
                     
                     memberListHTML = `<div class="mt-4 pt-3 border-t border-gray-200"><h4 class="font-semibold text-gray-700">${memberCountText}</h4>${listContent}</div>`;
                 }
-
 
                 resultsContainerEl.innerHTML += `
                     <div ${areaClasses} class="${groupClasses} p-6">
@@ -1052,8 +1173,8 @@
                         
                         <div class="p-3 bg-yellow-50 rounded-lg border border-yellow-200">
                             <h4 class="font-semibold text-yellow-700 mb-2">🎁 รางวัลที่ได้รับ:</h4>
-                            <p class="text-base text-gray-800">รางวัลรวม: <span class="font-bold text-yellow-600">${totalGoldWeightFormatted}</span></p>
-                            <p class="text-base text-gray-800">รางวัลเฉลี่ย/คน: <span class="font-bold text-yellow-600">${avgRewardFormatted} บาท</span></p>
+                            <p class="text-base text-gray-800">รางวัลรวม: <span class="font-bold text-yellow-600">${totalRewardWeightDisplay}</span></p>
+                            <p class="text-base text-gray-800">รางวัลเฉลี่ย/คน: <span class="font-bold text-yellow-600">${avgRewardMonetaryDisplay}</span></p>
                         </div>
                         
                         ${memberListHTML}
@@ -1096,9 +1217,11 @@
                 updateUserRole('Admin');
                 showPage('game');
                 // Set activeAdminId in gameState to hide login form for other players
+                // Also save the current gold price base and showRewards state
                 await setDoc(doc(db, GAME_STATE_DOC_PATH, 'current'), {
                     activeAdminId: userId,
-                    currentGoldPriceBase: parseInt(goldPriceBaseInputEl.value) || DEFAULT_GOLD_PRICE
+                    currentGoldPriceBase: parseInt(goldPriceBaseInputEl.value) || DEFAULT_GOLD_PRICE,
+                    showRewards: radioShowRewardsEl.checked
                 }, { merge: true });
             } else {
                 adminLoginMessageEl.textContent = '❌ รหัสไม่ถูกต้อง! ลองอีกครั้ง';
@@ -1125,6 +1248,19 @@
                 setupRealtimeListeners();
             }
         });
+
+        // NEW: Event listener for changing player name
+        changePlayerNameButtonEl.addEventListener('click', () => {
+            if (gameState.status === 'RUNNING' || gameState.status === 'PAUSED') {
+                return showAlert('ไม่สามารถเปลี่ยนชื่อได้ขณะเกมกำลังดำเนินอยู่หรือหยุดชั่วคราว');
+            }
+            
+            // Allow name change: clear stored name and reset UI to registration form
+            sessionStorage.removeItem('playerName');
+            playerNameInputEl.value = ''; 
+            renderLandingPageUI();
+        });
+
 
         resumeAsGuestButtonEl.addEventListener('click', () => {
             updateUserRole('Guest');
