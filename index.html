@@ -90,7 +90,7 @@
                             <input type="text" id="player-name-input" required placeholder="ชื่อเล่น"
                                 class="w-full p-3 border border-gray-300 rounded-lg focus:ring-orange-500 focus:border-orange-500 transition duration-150 text-gray-900 mb-4">
                                 
-                            <label for="player-dept-select" class="block text-sm font-medium text-gray-700 mb-2">แผนกที่สังกัด</label>
+                            <label for="player-dept-select" class="block text-sm font-medium text-gray-700 mb-2">ทีมที่สังกัด</label>
                             <select id="player-dept-select" required
                                 class="w-full p-3 border border-gray-300 rounded-lg focus:ring-orange-500 focus:border-orange-500 transition duration-150 text-gray-900 mb-4">
                                 <!-- Options will be populated by JS -->
@@ -341,7 +341,7 @@
     
     <!-- FOOTER: VERSION NUMBER (UPDATED TO 0.89) -->
     <footer class="text-center mt-10 p-4 text-gray-600 text-xs">
-        ver 0.91.1
+        ver 0.91.2
     </footer>
 
 
@@ -536,7 +536,7 @@
             const storedName = sessionStorage.getItem('playerName');
             
             // Populate department dropdown
-            playerDeptSelectEl.innerHTML = '<option value="" disabled selected>--- เลือกแผนก ---</option>' + 
+            playerDeptSelectEl.innerHTML = '<option value="" disabled selected>--- เลือกทีม ---</option>' + 
                 DEPARTMENTS.map(dept => `<option value="${dept}">${dept}</option>`).join('');
 
             // Reset layout for landing page (default: 2 columns wide)
