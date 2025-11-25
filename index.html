@@ -341,7 +341,7 @@
     
     <!-- FOOTER: VERSION NUMBER (UPDATED TO 0.89) -->
     <footer class="text-center mt-10 p-4 text-gray-600 text-xs">
-        ver 0.89
+        ver 0.91
     </footer>
 
 
@@ -779,7 +779,7 @@
             } else if (status === 'PAUSED') {
                 mainControlButtonEl.textContent = 'เล่นต่อ (Resume)';
                 mainControlButtonEl.classList.remove('bg-orange-500', 'bg-yellow-500');
-                mainControlButtonB.classList.add('bg-green-500');
+                mainControlButtonEl.classList.add('bg-green-500'); // FIX: Changed mainControlButtonB to mainControlButtonEl
             }
             mainControlButtonEl.disabled = false;
         }
@@ -1108,8 +1108,8 @@
                 voteInstructionMessageEl.classList.add('hidden');
             }
 
-            // Should display names and detailed info if game is IDLE (finished) OR if the user is Admin
-            const showNamesAndDetails = gameState.status === 'IDLE' || isAdmin;
+            // Should display names and detailed info if game is IDLE (finished) OR PAUSED OR if the user is Admin
+            const showNamesAndDetails = gameState.status === 'IDLE' || gameState.status === 'PAUSED' || isAdmin;
             // Determine if rewards should be shown based on state
             const showRewards = gameState.showRewards !== false; 
             
@@ -1220,7 +1220,7 @@
                     avgRewardMonetaryDisplay = maskMonetaryValue(avgRewardBase) + ' บาท';
                 }
                 
-                // Member List Logic (Only display names if game is IDLE or if user is Admin)
+                // Member List Logic (Only display names if showNamesAndDetails is true)
                 let memberListHTML = ''; 
                 if (showNamesAndDetails) {
                     const memberCountText = `รายชื่อสมาชิก (${group.names.length} คน):`;
