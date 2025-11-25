@@ -223,7 +223,7 @@
                 
                 <!-- NEW: Admin Player List Panel (Visible only to Admin) -->
                 <div id="admin-player-list-panel" class="bg-white p-6 rounded-xl shadow-2xl border border-gray-300 hidden">
-                    <h2 class="2xl font-bold mb-4 text-orange-600 border-b pb-3">
+                    <h2 class="text-2xl font-bold mb-4 text-orange-600 border-b pb-3">
                         รายชื่อผู้เล่นทั้งหมด (<span id="admin-total-players" class="text-gray-600">0</span> คน)
                     </h2>
                     <div id="admin-player-list" class="space-y-2 max-h-60 overflow-y-auto">
@@ -254,8 +254,8 @@
 
                 <!-- Guest/Blocked Message Area (Visible to Guests or Blocked Users) -->
                 <div id="guest-view-section" class="bg-white p-6 rounded-xl shadow-2xl h-fit border border-gray-300 hidden">
-                    <h2 class="2xl font-bold mb-4 text-gray-800">โหมดผู้ชม (Guest View)</h2>
-                    <p class="gray-600 mb-4">คุณกำลังดูผลลัพธ์แบบเรียลไทม์ และไม่สามารถร่วมเล่นเกมได้</p>
+                    <h2 class="text-2xl font-bold mb-4 text-gray-800">โหมดผู้ชม (Guest View)</h2>
+                    <p class="text-gray-600 mb-4">คุณกำลังดูผลลัพธ์แบบเรียลไทม์ และไม่สามารถร่วมเล่นเกมได้</p>
                     <p id="guest-block-message" class="text-center p-3 rounded-lg font-bold text-lg bg-red-100 text-red-700 hidden">
                         <!-- Removed: Block message UI element is now unused -->
                     </p>
@@ -297,9 +297,9 @@
         </div>
     </div>
     
-    <!-- FOOTER: VERSION NUMBER (UPDATED TO 0.64) -->
+    <!-- FOOTER: VERSION NUMBER (UPDATED TO 0.74) -->
     <footer class="text-center mt-10 p-4 text-gray-600 text-xs">
-        ver 0.64
+        ver 0.77
     </footer>
 
 
@@ -745,6 +745,7 @@
             // Timer Logic
             if (gameState.status === 'RUNNING' && gameState.endTime) {
                 timerDisplayEl.classList.remove('hidden');
+                timerValueEl.classList.remove('hidden'); // FIX: Ensure timer value is visible
                 timerInterval = setInterval(() => {
                     let timeRemaining = Math.max(0, Math.floor(((gameState.endTime.toMillis ? gameState.endTime.toMillis() : new Date(gameState.endTime).getTime()) - Date.now()) / 1000));
                     timerValueEl.textContent = formatTime(timeRemaining);
@@ -755,6 +756,7 @@
                 }, 1000);
             } else if (gameState.status === 'PAUSED' && gameState.remainingTimeSeconds !== undefined) {
                 timerDisplayEl.classList.remove('hidden');
+                timerValueEl.classList.remove('hidden'); // FIX: Ensure timer value is visible
                 timerValueEl.textContent = formatTime(gameState.remainingTimeSeconds);
             } else if (gameState.status === 'IDLE') {
                 timerDisplayEl.classList.remove('hidden');
@@ -993,7 +995,7 @@
                 const isPlayerInGroup = group.number === playerVoteIndex;
                 
                 // Base classes for a group box
-                let groupClasses = 'bg-white shadow-md border-l-4 border-orange-500 transition duration-150 rounded-xl';
+                let groupClasses = 'shadow-md border-l-4 border-orange-500 transition duration-150 rounded-xl';
                 let areaClasses = 'class="group-vote-area"';
                 let statusContent = '';
                 
