@@ -341,7 +341,7 @@
     
     <!-- FOOTER: VERSION NUMBER (UPDATED TO 0.89) -->
     <footer class="text-center mt-10 p-4 text-gray-600 text-xs">
-        ver 0.91.3
+        ver 0.92
     </footer>
 
 
@@ -624,15 +624,14 @@
                         }
                     } catch (error) {
                         console.error("Authentication failed:", error);
-                        authStatusEl.textContent = "เกิดข้อผิดพลาดในการเชื่อมต่อ (Auth): " + error.message;
-                        authStatusEl.classList.remove('hidden');
+                        // Do not use showAlert here as it might conflict with page load
+                        // console.error logs are sufficient for auth issues
                     }
                 }
             });
         } catch (error) {
             console.error("Firebase Initialization Error:", error);
-            authStatusEl.textContent = "เกิดข้อผิดพลาดในการเริ่มต้นแอป: " + error.message;
-            authStatusEl.classList.remove('hidden');
+            // Do not use showAlert here as it might conflict with page load
         }
 
         // --- Game Logic Functions ---
@@ -815,18 +814,18 @@
                 radioHideRewardsEl.checked = !isShowing;
             }
 
-            // Player/Guest re-registration check
+            // Player/Guest re-registration check (MODIFIED LOGIC)
             if (isPlayer || isGuest) {
                 if (isGameNew) {
                     if (latestGameTimestamp && latestGameTimestamp !== String(newGameTimestamp)) {
-                        console.log("Game reset detected. Forcing re-registration.");
+                        console.log("Game reset detected. Taking user to landing page for choice.");
+                        // *** MODIFICATION START: Keep playerName and playerDept for resume option ***
                         sessionStorage.removeItem('currentUserRole');
-                        sessionStorage.removeItem('playerName');
-                        sessionStorage.removeItem('playerDept'); // NEW: Clear department
                         sessionStorage.removeItem('latestGameTimestamp');
                         updateUserRole('Unknown');
                         showPage('landing');
                         return;
+                        // *** MODIFICATION END ***
                     }
                     // For the first time accessing a game in IDLE state, save the timestamp
                     sessionStorage.setItem('latestGameTimestamp', String(newGameTimestamp));
@@ -1154,6 +1153,7 @@
                     if (g.count === minCountIfAny) {
                         countOfMinGroups++;
                     }
+                    // Handle the case where no one has voted, minCountIfAny is 0, countOfMinGroups should be 0
                 });
             }
             const isSingleMinimumGroup = minCountIfAny > 0 && countOfMinGroups === 1;
