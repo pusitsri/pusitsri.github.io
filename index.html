@@ -86,9 +86,16 @@
                     <!-- Content for NEW Player (Default) -->
                     <div id="player-card-content"> 
                         <form id="player-registration-form">
-                            <label for="player-name-input" class="block text-sm font-medium text-gray-700 mb-2">ชื่อผู้เล่น</label>
-                            <input type="text" id="player-name-input" required placeholder="ชื่อหรือชื่อเล่น"
-                                class="w-full p-3 border border-gray-300 rounded-lg focus:ring-orange-500 focus:border-orange-500 transition duration-150 text-gray-900">
+                            <label for="player-name-input" class="block text-sm font-medium text-gray-700 mb-2">ชื่อผู้เล่น (ชื่อเล่น)</label>
+                            <input type="text" id="player-name-input" required placeholder="ชื่อเล่น"
+                                class="w-full p-3 border border-gray-300 rounded-lg focus:ring-orange-500 focus:border-orange-500 transition duration-150 text-gray-900 mb-4">
+                                
+                            <label for="player-dept-select" class="block text-sm font-medium text-gray-700 mb-2">แผนกที่สังกัด</label>
+                            <select id="player-dept-select" required
+                                class="w-full p-3 border border-gray-300 rounded-lg focus:ring-orange-500 focus:border-orange-500 transition duration-150 text-gray-900 mb-4">
+                                <!-- Options will be populated by JS -->
+                            </select>
+
                             <button type="submit"
                                 class="w-full mt-4 bg-orange-500 text-white p-3 rounded-lg font-semibold hover:bg-orange-600 transition duration-200 shadow-md">
                                 เข้าเล่นเกม
@@ -154,7 +161,7 @@
                 <div id="admin-control-panel" class="bg-white p-6 rounded-xl shadow-2xl border-4 border-orange-500 hidden">
                     <h2 class="2xl font-bold mb-4 text-orange-600 border-b pb-3">
                         สถานะและการควบคุมเกม
-                    </h2>
+                    </h2 >
                     
                     <!-- Gold Price Base Input (NEW) -->
                     <div class="mb-4">
@@ -332,9 +339,9 @@
         </div>
     </div>
     
-    <!-- FOOTER: VERSION NUMBER (UPDATED TO 0.74) -->
+    <!-- FOOTER: VERSION NUMBER (UPDATED TO 0.89) -->
     <footer class="text-center mt-10 p-4 text-gray-600 text-xs">
-        ver 0.87
+        ver 0.89
     </footer>
 
 
@@ -351,6 +358,13 @@
         const DEFAULT_GOLD_PRICE = 64000;
         const TIME_ADJUST_SECONDS = 30;
         const GROUP_LABELS = ['A', 'B', 'C', 'D', 'E'];
+        
+        // NEW: Department List (Sorted alphabetically)
+        const DEPARTMENTS = [
+            'AI Eng.', 'BA', 'Data Eng.', 'Designer', 'ITS', 'Manager', 'Principal', 'QA', 'SRE', 
+            'ทีมตู่ (Tech)', 'ทีมบาส', 'ทีมบิว', 'ทีมโดนัท', 'ทีมอาร์ม', 'ทีมออฟ', 'ทีมโจ้', 'ทีมหมี', 'ทีมวัฒน์'
+        ].sort((a, b) => a.localeCompare(b, 'th'));
+
 
         // State Variables
         let gameState = {status: 'IDLE', endTime: null, remainingTimeSeconds: DEFAULT_DURATION_SECONDS, newGameTimestamp: null, currentGoldPriceBase: DEFAULT_GOLD_PRICE, showRewards: true};
@@ -361,6 +375,7 @@
         let isPlayer = false;
         let isGuest = false;
         let playerName = '';
+        let playerDept = ''; // NEW: Player Department
         let currentAdminPasscode = DEFAULT_ADMIN_PASSCODE;
 
         // Firebase Configuration (for external hosting)
@@ -390,6 +405,7 @@
         const adminLoginMessageEl = document.getElementById('admin-login-message');
         const adminPasscodeInputEl = document.getElementById('admin-passcode-input');
         const playerNameInputEl = document.getElementById('player-name-input');
+        const playerDeptSelectEl = document.getElementById('player-dept-select'); // NEW DOM
         const guestAccessErrorEl = document.getElementById('guest-access-error');
         const customAlertModalEl = document.getElementById('custom-alert-modal');
         const customAlertMessageEl = document.getElementById('custom-alert-message');
@@ -423,7 +439,7 @@
         const timerDisplayEl = document.getElementById('timer-display');
         const timerValueEl = document.getElementById('timer-value');
         const changePlayerNameButtonEl = document.getElementById('change-player-name-button');
-        const voteInstructionMessageEl = document.getElementById('vote-instruction-message'); // NEW DOM
+        const voteInstructionMessageEl = document.getElementById('vote-instruction-message'); 
         // NEW DOM
         const radioShowRewardsEl = document.getElementById('radio-show-rewards'); 
         const radioHideRewardsEl = document.getElementById('radio-hide-rewards');
@@ -519,6 +535,10 @@
         function renderLandingPageUI() {
             const storedName = sessionStorage.getItem('playerName');
             
+            // Populate department dropdown
+            playerDeptSelectEl.innerHTML = '<option value="" disabled selected>--- เลือกแผนก ---</option>' + 
+                DEPARTMENTS.map(dept => `<option value="${dept}">${dept}</option>`).join('');
+
             // Reset layout for landing page (default: 2 columns wide)
             landingPageEl.classList.remove('md:grid-cols-3');
             landingPageEl.classList.add('md:grid-cols-2', 'md:max-w-xl');
@@ -539,15 +559,17 @@
             }
         }
 
-        function updateUserRole(role, name = '') {
+        function updateUserRole(role, name = '', dept = '') {
             currentUserRole = role;
             isAdmin = role === 'Admin';
             isPlayer = role === 'Player';
             isGuest = role === 'Guest';
             playerName = name;
+            playerDept = dept; // NEW: Save department
             
             sessionStorage.setItem('currentUserRole', role);
             if (name) sessionStorage.setItem('playerName', name);
+            if (dept) sessionStorage.setItem('playerDept', dept); // NEW: Save department
             
             renderGamePageUI();
         }
@@ -564,7 +586,8 @@
                 adminPlayerListPanelEl.classList.remove('hidden');
             } else if (isPlayer) {
                 playerInfoSectionEl.classList.remove('hidden');
-                currentPlayerNameEl.textContent = playerName;
+                // MODIFIED FORMAT: playerName - playerDept
+                currentPlayerNameEl.textContent = `${playerName} - ${playerDept}`; 
             } else if (isGuest) {
                 guestViewSectionEl.classList.remove('hidden');
             }
@@ -582,9 +605,10 @@
                     userId = user.uid;
                     const role = sessionStorage.getItem('currentUserRole');
                     const name = sessionStorage.getItem('playerName') || '';
+                    const dept = sessionStorage.getItem('playerDept') || ''; // NEW: Load department
                     
                     if (role && role !== 'Unknown') {
-                        updateUserRole(role, name);
+                        updateUserRole(role, name, dept); // Pass department
                         setupRealtimeListeners();
                         showPage('game');
                     } else {
@@ -613,7 +637,7 @@
 
         // --- Game Logic Functions ---
 
-        async function autoAssignPlayer(uid, name) {
+        async function autoAssignPlayer(uid, name, dept) { // Added dept
             if (!db || !name) return;
             const randomGroupIndex = Math.floor(Math.random() * GROUP_LABELS.length);
             const randomGroupLabel = GROUP_LABELS[randomGroupIndex];
@@ -623,6 +647,7 @@
             try {
                 await setDoc(doc(db, VOTES_COLLECTION_PATH, uid), {
                     name: name,
+                    department: dept, // NEW: Save department to Firestore
                     vote: randomGroupIndex,
                     timestamp: serverTimestamp(),
                     userId: uid
@@ -698,28 +723,37 @@
 
                 querySnapshot.forEach(docSnap => {
                     const data = docSnap.data();
+                    // CRITICAL FIX: Attach the userId (document ID) for removal later
+                    data.userId = docSnap.id; 
                     allVotes.push(data);
                     
                     // Group votes by group index (0-4)
                     if (data.vote !== undefined && data.vote >= 0 && data.vote <= 4 && groupedVotes[data.vote]) {
-                        groupedVotes[data.vote].push(data.name);
+                        // Store full player object for Admin list rendering
+                        groupedVotes[data.vote].push({name: data.name, department: data.department || 'N/A', userId: data.userId}); // Ensure userId is passed for member list removal
                     }
 
                     // Check player's status
                     if (docSnap.id === userId && isPlayer) {
                         playerHasVoted = true;
                         playerCurrentVote = data.vote;
+                        // Update playerDept if it wasn't saved in sessionStorage but is in Firestore
+                        if (!playerDept && data.department) {
+                            playerDept = data.department;
+                            sessionStorage.setItem('playerDept', playerDept);
+                            renderGamePageUI(); // Re-render to show updated dept in UI
+                        }
                     }
                 });
                 
                 // Auto-assign player if registered but hasn't voted yet and game is running
                 if (isPlayer && gameState.status === 'RUNNING' && !playerHasVoted) {
                     console.log("Player registered and game is running. Auto-assigning group...");
-                    autoAssignPlayer(userId, playerName);
+                    autoAssignPlayer(userId, playerName, playerDept); // Pass department
                 }
                 
                 hasSubmittedInitialVote = playerHasVoted;
-                renderResultsAndAdminList(allVotes.length, groupedVotes, playerCurrentVote);
+                renderResultsAndAdminList(allVotes.length, groupedVotes, playerCurrentVote, allVotes); // Pass allVotes for Admin list
             }, (error) => {
                 console.error("Error fetching real-time votes: ", error);
                 resultsContainerEl.innerHTML = '<p class="text-red-500">ไม่สามารถโหลดผลโหวตได้: ' + error.message + '</p>';
@@ -745,7 +779,7 @@
             } else if (status === 'PAUSED') {
                 mainControlButtonEl.textContent = 'เล่นต่อ (Resume)';
                 mainControlButtonEl.classList.remove('bg-orange-500', 'bg-yellow-500');
-                mainControlButtonEl.classList.add('bg-green-500');
+                mainControlButtonB.classList.add('bg-green-500');
             }
             mainControlButtonEl.disabled = false;
         }
@@ -788,6 +822,7 @@
                         console.log("Game reset detected. Forcing re-registration.");
                         sessionStorage.removeItem('currentUserRole');
                         sessionStorage.removeItem('playerName');
+                        sessionStorage.removeItem('playerDept'); // NEW: Clear department
                         sessionStorage.removeItem('latestGameTimestamp');
                         updateUserRole('Unknown');
                         showPage('landing');
@@ -1025,6 +1060,7 @@
             try {
                 await setDoc(doc(db, VOTES_COLLECTION_PATH, userId), {
                     name: playerName,
+                    department: playerDept, // NEW: Include department in vote
                     vote: groupIndex,
                     timestamp: serverTimestamp(),
                     userId: userId
@@ -1036,14 +1072,32 @@
             } catch (error) {
                 console.error("Error submitting vote: ", error);
                 voteMessageEl.textContent = 'เกิดข้อผิดพลาดในการบันทึก: ' + error.message;
-                voteMessageEl.classList.add('text-red-600');
+                voteMessageEl.classList.add('text-red-500');
             }
         };
 
+        // --- Admin Actions (NEW) ---
+
+        window.removePlayer = async function(userIdToRemove) {
+            if (!isAdmin || gameState.status !== 'IDLE') {
+                return showAlert('❌ การลบผู้เล่นทำได้เฉพาะเมื่อเกมจบลงแล้วเท่านั้น');
+            }
+            if (!db || !userIdToRemove) return;
+
+            // Simple immediate deletion as per request (relying on Admin to be careful)
+            try {
+                await deleteDoc(doc(db, VOTES_COLLECTION_PATH, userIdToRemove));
+                // Firestore listener will update UI automatically, including reward recalculation
+                console.log(`Successfully removed player: ${userIdToRemove}`);
+            } catch (error) {
+                console.error("Error removing player: ", error);
+                showAlert("❌ ลบผู้เล่นไม่สำเร็จ: " + error.message);
+            }
+        };
 
         // --- Render Results ---
 
-        function renderResultsAndAdminList(totalPlayers, groupedVotes, playerVoteIndex) {
+        function renderResultsAndAdminList(totalPlayers, groupedVotes, playerVoteIndex, allVotes) { // Added allVotes parameter
             voterCountHeaderEl.textContent = totalPlayers;
             resultsContainerEl.innerHTML = '';
             
@@ -1069,9 +1123,20 @@
 
             // 2. Update Admin Player List (Unobtrusive)
             if (isAdmin) {
-                const uniquePlayers = groupData.flatMap(g => g.names).filter((name, index, self) => self.indexOf(name) === index).sort((a, b) => a.localeCompare(b));
-                adminTotalPlayersEl.textContent = uniquePlayers.length;
-                adminPlayerListEl.innerHTML = uniquePlayers.map(name => `<p class="text-sm text-gray-800 border-b border-gray-100 py-1 px-1">${name}</p>`).join('') || '<p class="text-sm italic text-gray-500">ยังไม่มีผู้เล่นลงทะเบียน</p>';
+                adminTotalPlayersEl.textContent = allVotes.length; // Use total count of docs in votes
+                const isGameIdle = gameState.status === 'IDLE';
+                
+                // Admin List: Show Name - Department
+                adminPlayerListEl.innerHTML = allVotes.sort((a, b) => a.name.localeCompare(b.name, 'th'))
+                    .map(p => {
+                        const userIdToRemove = p.userId; // Get userId from the player object (p)
+                        // Add Remove button only when game is IDLE
+                        const removeBtn = isGameIdle ? 
+                            `<button onclick="removePlayer('${userIdToRemove}')" title="ลบผู้เล่นคนนี้" class="text-xs text-red-500 hover:text-red-700 ml-2 font-semibold transition duration-150">ลบ</button>` : 
+                            '';
+                        return `<p class="flex justify-between items-center text-sm text-gray-800 border-b border-gray-100 py-1 px-1">${p.name} - ${p.department || 'N/A'} ${removeBtn}</p>`;
+                    }).join('') 
+                    || '<p class="text-sm italic text-gray-500">ยังไม่มีผู้เล่นลงทะเบียน</p>';
             }
 
             // 3. Calculate Rewards (Complex Logic)
@@ -1122,7 +1187,7 @@
                 // Base classes for a group box
                 let groupClasses = 'shadow-md border-l-4 border-orange-500 transition duration-150 rounded-xl';
                 let areaClasses = 'class="group-vote-area"';
-                let playerStatusInHeader = ''; // NEW
+                let playerStatusInHeader = ''; 
 
                 // Highlight and non-interactive if player is in this group
                 if (isPlayerInGroup) {
@@ -1139,7 +1204,6 @@
 
                 // Player Status Message (MODIFIED)
                 if (isPlayer && isPlayerInGroup) {
-                    // 2. Move "คุณอยู่กลุ่มนี้" next to the group name
                     playerStatusInHeader = `<span class="ml-2 text-xl font-bold text-green-700">(คุณอยู่กลุ่มนี้)</span>`;
                 }
 
@@ -1161,7 +1225,8 @@
                 if (showNamesAndDetails) {
                     const memberCountText = `รายชื่อสมาชิก (${group.names.length} คน):`;
                     const listContent = group.names.length > 0 ? 
-                        `<ul class="list-disc list-inside mt-3 ml-4 space-y-1 text-gray-700 max-h-40 overflow-y-auto">${group.names.map(name => `<li class="text-sm">${name}</li>`).join('')}</ul>` : 
+                        // Show Name - Department in member list
+                        `<ul class="list-disc list-inside mt-3 ml-4 space-y-1 text-gray-700 max-h-40 overflow-y-auto">${group.names.map(p => `<li class="text-sm">${p.name} - ${p.department || 'N/A'}</li>`).join('')}</ul>` : 
                         '<p class="text-sm italic text-gray-500 mt-2">ยังไม่มีสมาชิกกลุ่ม</p>';
                     
                     memberListHTML = `<div class="mt-4 pt-3 border-t border-gray-200"><h4 class="font-semibold text-gray-700">${memberCountText}</h4>${listContent}</div>`;
@@ -1196,7 +1261,7 @@
 
         function handlePlayerGuestLogout() {
             sessionStorage.removeItem('currentUserRole');
-            // NOTE: playerName is intentionally KEPT in sessionStorage to allow resuming
+            // NOTE: playerName and playerDept are intentionally KEPT in sessionStorage to allow resuming
             updateUserRole('Unknown');
             showPage('landing');
         }
@@ -1240,18 +1305,23 @@
         playerRegistrationFormEl.addEventListener('submit', (event) => {
             event.preventDefault();
             const name = playerNameInputEl.value.trim();
-            if (name) {
-                sessionStorage.setItem('playerName', name);
-                updateUserRole('Player', name);
-                showPage('game');
-                setupRealtimeListeners();
-            }
+            const dept = playerDeptSelectEl.value; // NEW: Get Department
+            
+            if (!name) { return showAlert('กรุณาใส่ชื่อผู้เล่น'); }
+            if (!dept) { return showAlert('กรุณาเลือกแผนกที่สังกัด'); }
+
+            sessionStorage.setItem('playerName', name);
+            sessionStorage.setItem('playerDept', dept); // NEW: Save Department
+            updateUserRole('Player', name, dept); // Pass Department
+            showPage('game');
+            setupRealtimeListeners();
         });
 
         resumePlayerButtonEl.addEventListener('click', () => {
             const name = sessionStorage.getItem('playerName');
+            const dept = sessionStorage.getItem('playerDept'); // NEW: Get Department
             if (name) {
-                updateUserRole('Player', name);
+                updateUserRole('Player', name, dept); // Pass Department
                 showPage('game');
                 setupRealtimeListeners();
             }
@@ -1265,7 +1335,9 @@
             
             // Allow name change: clear stored name and reset UI to registration form
             sessionStorage.removeItem('playerName');
+            sessionStorage.removeItem('playerDept'); // NEW: Clear Department
             playerNameInputEl.value = ''; 
+            playerDeptSelectEl.value = ''; // Reset Department selection
             renderLandingPageUI();
         });
 
@@ -1291,6 +1363,7 @@
             }
             sessionStorage.removeItem('currentUserRole');
             sessionStorage.removeItem('playerName');
+            sessionStorage.removeItem('playerDept'); // NEW: Clear Department
             updateUserRole('Unknown');
             showPage('landing');
         });
