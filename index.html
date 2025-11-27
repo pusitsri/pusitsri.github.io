@@ -341,7 +341,7 @@
     
     <!-- FOOTER: VERSION NUMBER (UPDATED TO 0.89) -->
     <footer class="text-center mt-10 p-4 text-gray-600 text-xs">
-        ver 0.92
+        ver 0.92.1
     </footer>
 
 
@@ -800,7 +800,7 @@
             const isGameNew = gameState.status === 'IDLE' && (newGameTimestamp || 0);
 
             const goldPriceBase = gameState.currentGoldPriceBase || DEFAULT_GOLD_PRICE;
-            goldPriceDisplayEl.textContent = `ราคาทองทำรูปพรรณ 1 บาท: ${goldPriceBase.toLocaleString()} บาท`;
+            goldPriceDisplayEl.textContent = `ราคาทองคำแท่ง(รับซื้อ) 1 บาท: ${goldPriceBase.toLocaleString()} บาท`;
             
             // Update Admin Gold Price Input
             if (isAdmin && gameState.currentGoldPriceBase) {
