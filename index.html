@@ -341,7 +341,7 @@
     
     <!-- FOOTER: VERSION NUMBER (UPDATED TO 0.89) -->
     <footer class="text-center mt-10 p-4 text-gray-600 text-xs">
-        ver 0.92.1
+        ver 0.93
     </footer>
 
 
@@ -800,7 +800,9 @@
             const isGameNew = gameState.status === 'IDLE' && (newGameTimestamp || 0);
 
             const goldPriceBase = gameState.currentGoldPriceBase || DEFAULT_GOLD_PRICE;
+            // *** START OF MODIFICATION 1: Update Gold Price Text ***
             goldPriceDisplayEl.textContent = `ราคาทองคำแท่ง(รับซื้อ) 1 บาท: ${goldPriceBase.toLocaleString()} บาท`;
+            // *** END OF MODIFICATION 1 ***
             
             // Update Admin Gold Price Input
             if (isAdmin && gameState.currentGoldPriceBase) {
@@ -1139,37 +1141,27 @@
             }
 
             // 3. Calculate Rewards (Complex Logic)
-            let minCount = Infinity;
-            groupData.forEach(g => {
-                if (g.count > 0 && g.count < minCount) {
-                    minCount = g.count;
-                }
-            });
-            const minCountIfAny = minCount === Infinity ? 0 : minCount;
+            // REMOVED: Unused minCount calculation (minCountIfAny, countOfMinGroups, isSingleMinimumGroup)
 
-            let countOfMinGroups = 0;
-            if (minCountIfAny > 0) {
-                groupData.forEach(g => {
-                    if (g.count === minCountIfAny) {
-                        countOfMinGroups++;
-                    }
-                    // Handle the case where no one has voted, minCountIfAny is 0, countOfMinGroups should be 0
-                });
-            }
-            const isSingleMinimumGroup = minCountIfAny > 0 && countOfMinGroups === 1;
             const goldPriceBase = gameState.currentGoldPriceBase || DEFAULT_GOLD_PRICE;
 
             groupData.forEach(group => { // Start of group loop
                 let goldRewardUnit = 0;
                 
                 if (group.count > 0) {
-                    if (group.count === minCountIfAny && isSingleMinimumGroup) {
-                        goldRewardUnit = 1; // 1 บาท (Golden Opportunity - Single Minimum)
-                    } else if (group.count % 2 === 0) {
-                        goldRewardUnit = 0.50; // 50 สตางค์ (Even Count)
-                    } else {
+                    // *** START OF MODIFICATION 2: New 1 Baht Rule (count > 0 AND divisible by 4) ***
+                    if (group.count % 4 === 0) {
+                        goldRewardUnit = 1; // 1 บาท (Divisible by 4)
+                    } 
+                    // Remaining logic: If not 1 Baht, check for 50 Stang (Even)
+                    else if (group.count % 2 === 0) {
+                        goldRewardUnit = 0.50; // 50 สตางค์ (Even Count, not divisible by 4)
+                    } 
+                    // Otherwise, 25 Stang (Odd)
+                    else {
                         goldRewardUnit = 0.25; // 25 สตางค์ (Odd Count)
                     }
+                    // *** END OF MODIFICATION 2 ***
                 }
                 
                 group.goldRewardUnit = goldRewardUnit;
